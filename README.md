@@ -3,8 +3,6 @@
 
 ## Deadlines:
 
----
-
 Deadline: 10.07
 internal Deadlines: 03.07
 - programming designated classes

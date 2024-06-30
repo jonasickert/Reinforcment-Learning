@@ -62,9 +62,8 @@ class wrapper():
         self.env = self.RewardClipper(envi)
         self.env = self.Preprocessing(self.env)
         self.env = gym.wrappers.FrameStack(self.env, 4)
-        self.return_env()
 
-    def return_env(self):
+    def get_env(self):
         """
         funciton to return changed env, not possible in __init__()
         :return: env with changed parameters

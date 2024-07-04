@@ -17,7 +17,6 @@ class DQNAgent():
         print("Wello Horld")
 
 
-
     def compute_action_value(self, state, action):
         """Idea: predict the actions for the state, takes all outputs, search for
         the correct action and return it
@@ -41,35 +40,4 @@ class DQNAgent():
         print("Mini mini man, DQN")
         #torch.save(dqn.load_state_dict(torch.load(name)))
 
-
-
-class PPOAgent():
-    "Grundideen gleich wie bei DQNAgewnt"
-
-    def __init__(self):
-        print("wello Horld")
-
-    def select_action(self, state):
-        """Idea: use predict
-        :param state: state to predict the action to
-        :return: the action the agent should choose
-        """
-        print("xD")
-
-    def compute_value(self, state):
-        print("Wello Horld")
-
-    def save_network(self, name):
-        """ saves the network parameters as name
-        :param name: of the save
-        """
-        print("Oh no no no, PPO")
-        # torch.save(dqn.state_dict(), name)
-
-    def load_network(self, name):
-        """ load the network
-        :param name: of the loaded network
-        """
-        print("Oh no no no, PPO")
-        # torch.save(dqn.load_state_dict(torch.load(name)))
 

@@ -2,6 +2,7 @@ import cv2
 import gymnasium as gym
 import numpy as np
 from PIL import Image
+from gymnasium import spaces
 
 
 class Wrapper():
@@ -40,17 +41,26 @@ class Wrapper():
             :param obs:observation to modify
             :return: grayscale "image" as an array
             """
+            print("is 84x84")
             if len(obs.shape) == 3 and obs.shape[2] == 3:
-                obs = cv2.cvtColor(obs, cv2.COLOR_RGB2GRAY)
-            obs = cv2.resize(obs, (84, 110))
-            obs = obs[13:97, :]
+                # Konvertieren des Bildes in Graustufen
+                obs = cv2.cvtColor(obs.astype('uint8'), cv2.COLOR_RGB2GRAY)
+                # Ändern der Größe des Bildes
+                obs = cv2.resize(obs, (84, 110))
+                # Zuschneiden des Bildes
+                obs = obs[13:97, :]
+                # Konvertieren in uint8, falls notwendig
+                if obs.dtype != np.uint8:
+                    obs = (obs * 255).astype('uint8')
+                return obs
             return obs
+
 
     def __init__(self, envi: gym.Env):
         """:param envi: environmnet that has to be changed"""
         self.env = self.RewardClipper(envi)
         self.env = self.Preprocessing(self.env)
-        self.env = gym.wrappers.FrameStack(self.env, 4)
+        self.env = gym.wrappers.FrameStack(self.env, 1)
         print("init Wrapper done!")
 
     def get_env(self):
@@ -61,16 +71,29 @@ class Wrapper():
         return self.env
 
 
-# ----------------Test--------------------
-env = gym.make("Hopper-v4", render_mode='rgb_array')
-twopac = Wrapper(env)
-pic = Image.fromarray(env.reset()[0])
-pic.show()
-print("before step()")
-for i in range(20):
-    action = twopac.env.action_space.sample()
-    x = twopac.env.step(action)
-    print(x)
-    if x[2]:
-        twopac.env.reset()
-print("finish")
+envi = gym.make("Hopper-v4")
+
+def testPreProcessing():
+    process = Wrapper.Preprocessing(envi)
+    pic = (np.random.randn(400,400,3)* 255).astype('uint8')
+    img_array = Image.fromarray(pic.astype('uint8')).convert('RGBA')
+    img_array.show()
+    img_new = process.observation(pic)
+    print(img_new)
+    img_new = Image.fromarray(img_new.astype('uint8'))
+    img_new.show()
+
+def testRewardClipping():
+    env = Wrapper(envi)
+    env = env.get_env()
+    env.reset()
+    x = env.step(envi.action_space.sample())
+    print("reward with clipping: "+str(x[1]))
+
+testPreProcessing()
+envi.reset()
+x = envi.step(envi.action_space.sample())
+print("reward without clipping: " + str(x[1]))
+testRewardClipping()
+
+

@@ -1,20 +1,22 @@
 import networks
+import gymnasium as gym
 import torch
 
 class DQNAgent():
 
-    def __init__(self, **kwargs):
+    def __init__(self, env:gym.Env, input_dim, **kwargs):
         print("Wello Horld")
         # initialisiere Netzwerk
-        # dqn = Networks.DQN()
-        # if kwargs is not Null ->
+        self.dqn = networks.QFunction(input_dim=input_dim, output_dim=len(env.action_space.shape))
+        if kwargs:
+            self.load_network(kwargs)
 
     def select_action(self, state):
         """Idea: use predict
         :param state: state to predict the action to
         :return: the action the agent should choose
         """
-        print("Wello Horld")
+        return self.dqn(state)
 
 
     def compute_action_value(self, state, action):
@@ -31,13 +33,12 @@ class DQNAgent():
         :param name: of the save
         """
         print("Mini mini man, DQN")
-        #torch.save(dqn.state_dict(), name)
+        torch.save(self.dqn.state_dict(), name)
 
     def load_network(self, name):
         """ load the network
         :param name: of the loaded network
         """
-        print("Mini mini man, DQN")
-        #torch.save(dqn.load_state_dict(torch.load(name)))
+        torch.load(self.dqn.load_state_dict(torch.load(name)))
 
 

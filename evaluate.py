@@ -2,9 +2,12 @@ import argparse
 import gymnasium as gym
 import numpy as np
 from random_agent import random_agent
+#*****extend_auf4b*****
+from agent import DQNAgent #Import the DQN agent 
 
-
-def evaluate_agent(env_name, num_episodes=10):
+#*****extend_auf4b*****
+#added agent_type
+def evaluate_agent(env_name, agent_type='random', num_episodes=10):
     """
     Evaluate a random agent in a Gym environment over 10 episodes.
 
@@ -13,8 +16,19 @@ def evaluate_agent(env_name, num_episodes=10):
     - num_episodes (int): Number of episodes to run the evaluation (default is 10).
     """
     env = gym.make(env_name)
-    # Initialize the random agent
-    agent = random_agent(env.action_space)
+    # Initialize the random agent: from auf2b
+    #agent = random_agent(env.action_space)
+
+    #*****extend_auf4b*****
+    if agent_type == 'random':
+        agent = random_agent(env.action_space)
+    elif agent_type == 'dqn':
+        input_dim = env.observation_space.shape[0]
+        agent = DQNAgent(env, input_dim)
+    else:
+        raise ValueError(f"Unsupported agent type: {agent_type}")
+    #**********************
+
     total_rewards = []
 
     for episode in range(num_episodes):
@@ -45,13 +59,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate a Random Agent in a Gymnasium environment.")
     # Define the argument for the Gym environment name
     parser.add_argument("--env", type=str, required=True, help="The Gymnasium environment to use.")
+
+    #*****extend_auf4b*****
+    parser.add_argument("--agent", type=str, choices=["random", "dqn"], default="random", help="The type of agent to use.")
+    #**********************
+
     # Define the argument for the number of episodes
     parser.add_argument("--episodes", type=int, default=10, help="The number of episodes to run.")
     # Parse the command-line arguments
     args = parser.parse_args()
 
-
-    evaluate_agent(args.env, args.episodes)
+    #*****extend_auf4b*****
+    #added agent_type
+    evaluate_agent(args.env, args.agent, args.episodes)
 
     """
     Example usage in the terminal:
@@ -61,4 +81,10 @@ if __name__ == "__main__":
     or
 
     python evaluate.py --env CartPole-v1 --episodes 10
+    python evaluate.py --env CartPole-v1 --agent dqn --episodes 10
+
+    #*****extend_auf4b*****
+    #the new commands 
+    python evaluate.py --env CartPole-v1 --agent random  --episodes 10
+    python evaluate.py --env CartPole-v1 --agent dqn  --episodes 10
     """

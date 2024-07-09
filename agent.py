@@ -91,6 +91,23 @@ class DQNAgent():
         # Return the Q-value corresponding to the given action
         return action_values[action]
 
+    #Maryem code: for task 4)b
+    #
+    def get_action_values(self, state):
+        """
+        Computes the Q-values for all actions in a given state using the Deep Q-Network (DQN).
+
+        Parameters:
+        state (numpy.ndarray): The current state of the environment represented as a NumPy array.
+
+        Returns:
+        numpy.ndarray: Array of Q-values for all actions in the given state.
+        """
+        state = torch.from_numpy(state).float().unsqueeze(0)
+        with torch.no_grad():
+            action_values = self.dqn(state).numpy().flatten()
+        return action_values
+
 
     def save_network(self, name):
         """ saves the network parameters as name

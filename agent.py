@@ -58,15 +58,39 @@ class DQNAgent():
         action = torch.argmax(action_values, dim=1).item()
         
         return action
-
-    def compute_action_value(self, state, action):
+    
+    #code von Jonas
+    #def compute_action_value(self, state, action):
         """Idea: predict the actions for the state, takes all outputs, search for
         the correct action and return it
         :param state: stated that is chosen
         :param action: action that is chosen
         :return: the action value for specific state and action
         """
-        print("Wello Horld")
+    #    print("Wello Horld")
+
+    #code von Maryem for task 4)b
+    def compute_action_value(self, state, action):
+        """
+        Computes the Q-value for a given state-action pair using the Deep Q-Network (DQN).
+
+        Parameters:
+        state (numpy.ndarray): The current state of the environment represented as a NumPy array.
+        action (int): The action for which to compute the Q-value.
+
+        Returns:
+        float: The Q-value for the given state-action pair.
+        """
+
+        # Convert the state from a NumPy array to a PyTorch tensor
+        state = torch.from_numpy(state).float().unsqueeze(0)
+        
+        # Pass the state through the DQN to get action values
+        action_values = self.dqn(state).detach().numpy().flatten()
+        
+        # Return the Q-value corresponding to the given action
+        return action_values[action]
+
 
     def save_network(self, name):
         """ saves the network parameters as name

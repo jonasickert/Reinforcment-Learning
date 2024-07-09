@@ -3,7 +3,40 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class QFunction(nn.Module):
+    """
+    Neural network model for Q-Learning based on pixel or feature inputs
+    
+    Attributes:
+        - input_type : str
+        - fc1 : nn.Linear
+        - fc2 : nn.Linear
+        - fc3 : nn.Linear
+        - conv1 : nn.Conv2d
+        - conv2 : nn.Conv2d
+        -conv3 : nn.Conv2d
+    
+    Methods:
+        forward(x):
+            Does the Forward Pass of the input through the network
+    """
+    
     def __init__(self, input_dim, output_dim, input_type='features'):
+        
+
+        """
+        parameters:
+        
+            input_dim: int or tuple
+                - Features is int
+                - pixels is tuple
+            
+            output_dim: int 
+                - number of actions
+            
+            input_type: str
+                - features or pixels
+                     
+        """
         super(QFunction, self).__init__()
         self.input_type = input_type
 
@@ -23,6 +56,16 @@ class QFunction(nn.Module):
             raise ValueError("Invalid input_type. Must be 'features' or 'pixels'.")
 
     def forward(self, x):
+        """
+        parameters:
+            x: torch.tensor
+                - for features its 2D (batch_size, input_dim)
+                - for pixels its 4D (batch_size, channels, height, width)
+        
+        returns:
+            torch.Tensor
+        """
+        
         if self.input_type == 'features':
             x = F.relu(self.fc1(x))
             x = F.relu(self.fc2(x))

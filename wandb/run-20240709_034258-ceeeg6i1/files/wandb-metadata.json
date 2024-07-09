@@ -1,0 +1,36 @@
+{
+  "os":  "Windows-10-10.0.22631-SP0",
+  "python":  "3.11.7",
+  "startedAt":  "2024-07-09T01:42:58.127596Z",
+  "args":  [
+    "--env",
+    "CartPole-v1",
+    "--episodes",
+    "1",
+    "--render_mode",
+    "human"
+  ],
+  "program":  "C:\\Users\\enyua\\Documents\\GitHub\\G3\\videos.py",
+  "codePath":  "videos.py",
+  "email":  "enyua@outlook.de",
+  "root":  "C:\\Users\\enyua\\Documents\\GitHub\\G3",
+  "host":  "enyu",
+  "username":  "enyua",
+  "executable":  "C:\\Users\\enyua\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+  "codePathLocal":  "videos.py",
+  "cpu_count":  8,
+  "cpu_count_logical":  16,
+  "disk":  {
+    "/":  {
+      "total":  "159604797440",
+      "used":  "98375770112"
+    }
+  },
+  "memory":  {
+    "total":  "17088319488"
+  },
+  "cpu":  {
+    "count":  8,
+    "countLogical":  16
+  }
+}

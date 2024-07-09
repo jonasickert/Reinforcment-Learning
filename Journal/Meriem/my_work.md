@@ -19,7 +19,7 @@
 - Tested `videos script` with `CartPole-v1` with commands.
 
 ## Documentation
-- Added docstrings for the following methods:
+- Added docstrings for the following methods,scripts and classes:
   - `random_agent`
   - `evaluate script`
   - `videos script`

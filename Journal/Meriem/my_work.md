@@ -7,7 +7,7 @@
 - **Evaluate Script**: Extended for  `auf4b`.
 - **Videos Script**: Extended for  `auf4b`.
 - **Agent.py**: Implementation of `get_action_values` 
-- 
+  
 ## Modifications
 - **Agent.py (__init__)**
 - **Agent.py (select_action)**
@@ -20,7 +20,7 @@
 
 ## Documentation
 - Added docstrings for the following methods:
-  - `Select Action (state)`
+  - `random_agent`
   - `evaluate script`
   - `videos script`
   - `Agent.py (__init__)`

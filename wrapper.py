@@ -14,7 +14,6 @@ class Wrapper():
         def __init__(self, env):
             """:param env: environment where the reward should be clipped"""
             super().__init__(env)
-            print("init RewardClipping done!")
 
         def reward(self, reward: float):
             """
@@ -32,7 +31,6 @@ class Wrapper():
         def __init__(self, env):
             """:param env: environment where the reward should be clipped"""
             super().__init__(env)
-            print("init Preprocessing done!")
 
         def observation(self, obs):
             """
@@ -41,7 +39,6 @@ class Wrapper():
             :param obs:observation to modify
             :return: grayscale "image" as an array
             """
-            print("is 84x84")
             if len(obs.shape) == 3 and obs.shape[2] == 3:
                 # Konvertieren des Bildes in Graustufen
                 obs = cv2.cvtColor(obs.astype('uint8'), cv2.COLOR_RGB2GRAY)
@@ -61,7 +58,6 @@ class Wrapper():
         self.env = self.RewardClipper(envi)
         self.env = self.Preprocessing(self.env)
         self.env = gym.wrappers.FrameStack(self.env, 1)
-        print("init Wrapper done!")
 
     def get_env(self):
         """
@@ -74,16 +70,21 @@ class Wrapper():
 envi = gym.make("Hopper-v4")
 
 def testPreProcessing():
+    """
+    testPreProcessing tests the @Wrapper.PreProcessing
+    """
     process = Wrapper.Preprocessing(envi)
     pic = (np.random.randn(400,400,3)* 255).astype('uint8')
     img_array = Image.fromarray(pic.astype('uint8')).convert('RGBA')
     img_array.show()
     img_new = process.observation(pic)
-    print(img_new)
     img_new = Image.fromarray(img_new.astype('uint8'))
     img_new.show()
 
 def testRewardClipping():
+    """
+    tests the @Wrapper.RewardClipper
+    """
     env = Wrapper(envi)
     env = env.get_env()
     env.reset()

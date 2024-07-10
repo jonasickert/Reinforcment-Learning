@@ -13,7 +13,6 @@ class DQNAgent():
         env (gym.Env): The environment in which the agent will operate.
         input_dim (int): The dimension of the input (observation space).
         """
-        print("Wello Horld")
         # initialisiere Netzwerk
         self.dqn = networks.QFunction(input_dim=input_dim, output_dim=env.action_space.n)
         if kwargs:
@@ -68,7 +67,6 @@ class DQNAgent():
         """ saves the network parameters as name
         :param name: of the save
         """
-        print("Mini mini man, DQN")
         torch.save(self.dqn.state_dict(), name)
 
     #code von Jonas

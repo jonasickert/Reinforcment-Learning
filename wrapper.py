@@ -14,7 +14,6 @@ class Wrapper():
         def __init__(self, env):
             """:param env: environment where the reward should be clipped"""
             super().__init__(env)
-            print("init RewardClipping done!")
 
         def reward(self, reward: float):
             """
@@ -71,6 +70,9 @@ class Wrapper():
 envi = gym.make("Hopper-v4")
 
 def testPreProcessing():
+    """
+    testPreProcessing tests the @Wrapper.PreProcessing
+    """
     process = Wrapper.Preprocessing(envi)
     pic = (np.random.randn(400,400,3)* 255).astype('uint8')
     img_array = Image.fromarray(pic.astype('uint8')).convert('RGBA')
@@ -80,6 +82,9 @@ def testPreProcessing():
     img_new.show()
 
 def testRewardClipping():
+    """
+    tests the @Wrapper.RewardClipper
+    """
     env = Wrapper(envi)
     env = env.get_env()
     env.reset()

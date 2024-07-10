@@ -37,7 +37,7 @@ def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_a
         state, _ = env.reset()
         done = False
         #*****Extend_Auf4)b*****
-        max_action_values = []  # List to store action values for plotting
+        action_values = []  # List to store action values for plotting
 
         frames = []
         while not done:
@@ -51,12 +51,10 @@ def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_a
 
             #*****Extend_Auf4)b*****
             if agent_type == 'dqn':
-                # Store the Q-value for the chosen action
-                #q_value = agent.get_action_values(state)[action]
+                # Store the Q-value for the chosen action in that state
                 #action_values.append(q_value)
-                # Store the maximum Q-value for the current state
-                max_q_value = np.max(agent.get_action_values(state))
-                max_action_values.append(max_q_value)
+                q_value = agent.compute_action_value(state, action)
+                action_values.append(q_value)
 
 
         if render_mode == 'rgb_array':
@@ -72,7 +70,7 @@ def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_a
             elif agent_type == 'dqn':
                 # Create frames with environment and action value plots
                 #side_by_side_frames = create_side_by_side_frames(frames, action_values)
-                side_by_side_frames = create_side_by_side_frames(frames,max_action_values)
+                side_by_side_frames = create_side_by_side_frames(frames,action_values)
                 clip = mpy.ImageSequenceClip(side_by_side_frames, fps=env.metadata.get('render_fps', 30))
 
             clip.write_videofile(video_path, codec='libx264')
@@ -88,8 +86,13 @@ def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_a
 
 #*****Extend_Auf4)b*****
 def create_side_by_side_frames(env_frames, action_values):
+    # To store the combined frames
     side_by_side_frames = []
+
+    # Iterate through each environment frame and its index
     for i, env_frame in enumerate(env_frames):
+
+        # Create a new figure and axis for plotting
         fig, ax = plt.subplots(figsize=(5, 5))
         ax.plot(range(i + 1), action_values[:i + 1], label='Q-value of chosen action')
         ax.legend(loc='upper left')
@@ -112,19 +115,43 @@ def create_side_by_side_frames(env_frames, action_values):
 
 
 def fig_to_image(fig):
-    
+    """
+    Convert a matplotlib figure to a numpy array representation of an RGB image.
+
+    Parameters:
+    - fig: The matplotlib figure to convert.
+
+    Returns:
+    - np.array: Numpy array representing the RGB image.
+    """
+
+    # Draw the figure onto the canvas
     fig.canvas.draw()
     width, height = fig.canvas.get_width_height()
+    # Convert the canvas to a numpy array of RGB pixels
     image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8').reshape(height, width, 3)
     return image
 
 
 def resize_image(image, target_height):
-    
+    """
+    Resize a numpy array image to a target height while maintaining aspect ratio.
+
+    Parameters:
+    - image (np.array): Input numpy array representing an image.
+    - target_height (int): Desired height of the resized image.
+
+    Returns:
+    - np.array: Resized numpy array representing the image.
+    """
+
+    # Convert the numpy array image to a PIL Image
     img = Image.fromarray(image)
     aspect_ratio = img.width / img.height
     target_width = int(target_height * aspect_ratio)
+     # Resize
     img_resized = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+    # Convert the resized PIL Image back to a numpy array and return
     return np.array(img_resized)
 
 

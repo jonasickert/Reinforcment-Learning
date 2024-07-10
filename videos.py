@@ -4,10 +4,18 @@ import os
 import moviepy.editor as mpy
 import wandb
 from random_agent import random_agent
+#*****Extend_Auf4)b*****
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
+from agent import DQNAgent
+
 
 wandb.require("core")
 
-def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_array', log_wandb=False):
+#*****Extend_Auf4)b*****
+# Added agent_type
+def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_array', agent_type='random', log_wandb=False):
     """ 
     Creates a video of an agent's performance in a Gym environment.
 
@@ -19,6 +27,7 @@ def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_a
         render_mode (str, optional): Rendering mode:
             - 'human' for live rendering.
             - 'rgb_array' for video recording. Defaults to 'rgb_array'.
+        agent_type (str, optional): The type of agent (e.g., 'random', 'dqn'). Defaults to 'random'.    
         log_wandb (bool, optional): to log results to Weights & biases. Default is set to False
     """
     
@@ -27,6 +36,8 @@ def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_a
     for episode in range(num_episodes):
         state, _ = env.reset()
         done = False
+        #*****Extend_Auf4)b*****
+        max_action_values = []  # List to store action values for plotting
 
         frames = []
         while not done:
@@ -38,11 +49,32 @@ def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_a
             action = agent.select_action(state)
             state, reward, done, truncated, info = env.step(action)
 
+            #*****Extend_Auf4)b*****
+            if agent_type == 'dqn':
+                # Store the Q-value for the chosen action
+                #q_value = agent.get_action_values(state)[action]
+                #action_values.append(q_value)
+                # Store the maximum Q-value for the current state
+                max_q_value = np.max(agent.get_action_values(state))
+                max_action_values.append(max_q_value)
+
+
         if render_mode == 'rgb_array':
             # Create video file using MoviePy ('pip install MoviePy' -if needed)
             video_path = os.path.join(output_dir, f"{env_name}_episode_{episode + 1}.mp4")
             print(f"Saving video to {video_path}")
-            clip = mpy.ImageSequenceClip(frames, fps=env.metadata.get('render_fps', 30))
+            #clip = mpy.ImageSequenceClip(frames, fps=env.metadata.get('render_fps', 30))
+            #clip.write_videofile(video_path, codec='libx264')
+
+            #*****Extend_Auf4)b*****
+            if agent_type == 'random':
+                clip = mpy.ImageSequenceClip(frames, fps=env.metadata.get('render_fps', 30))
+            elif agent_type == 'dqn':
+                # Create frames with environment and action value plots
+                #side_by_side_frames = create_side_by_side_frames(frames, action_values)
+                side_by_side_frames = create_side_by_side_frames(frames,max_action_values)
+                clip = mpy.ImageSequenceClip(side_by_side_frames, fps=env.metadata.get('render_fps', 30))
+
             clip.write_videofile(video_path, codec='libx264')
             
             if log_wandb:
@@ -54,14 +86,61 @@ def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_a
 
         env.close()
 
+#*****Extend_Auf4)b*****
+def create_side_by_side_frames(env_frames, action_values):
+    side_by_side_frames = []
+    for i, env_frame in enumerate(env_frames):
+        fig, ax = plt.subplots(figsize=(5, 5))
+        ax.plot(range(i + 1), action_values[:i + 1], label='Q-value of chosen action')
+        ax.legend(loc='upper left')
+        ax.set_title('Q-values Over Time')
+        ax.set_xlabel('Time Steps')
+        ax.set_ylabel('Q-values')
 
+        # Convert the plot to an image
+        plt_frame = fig_to_image(fig)
+        plt.close(fig)
+
+        # Resize the plot frame to match the height of the environment frame
+        plt_frame_resized = resize_image(plt_frame, env_frame.shape[0])
+
+        # Combine the environment frame and plot frame side-by-side
+        combined_frame = np.hstack((env_frame, plt_frame_resized))
+        side_by_side_frames.append(combined_frame)
+
+    return side_by_side_frames
+
+
+def fig_to_image(fig):
+    
+    fig.canvas.draw()
+    width, height = fig.canvas.get_width_height()
+    image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8').reshape(height, width, 3)
+    return image
+
+
+def resize_image(image, target_height):
+    
+    img = Image.fromarray(image)
+    aspect_ratio = img.width / img.height
+    target_width = int(target_height * aspect_ratio)
+    img_resized = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+    return np.array(img_resized)
+
+
+#*****Extend_Auf4)b*****
+# Added agent_type
 if __name__ == "__main__":
+
     # Argument parsing
     parser = argparse.ArgumentParser(description="Create videos of an agent in a Gymnasium environment.")
     parser.add_argument("--env", type=str, required=True, help="The Gymnasium environment to use.")
     parser.add_argument("--episodes", type=int, default=1, help="The number of episodes to record.")
     parser.add_argument("--output_dir", type=str, default="./videos", help="Directory to save the videos.")
     parser.add_argument("--render_mode", type=str, choices=['human', 'rgb_array'], default='rgb_array', help="Render mode: 'human' for live rendering, 'rgb_array' for video recording.")
+    #*****Extend_Auf4)b*****
+    parser.add_argument("--agent", type=str, choices=["random", "dqn"], default="random", help="The type of agent to use.")
+
     parser.add_argument("--log_wandb", action="store_true",default=False, help="Log results to Weights & Biases.")
     
     # Parse the command-line arguments
@@ -81,12 +160,26 @@ if __name__ == "__main__":
     output_dir = args.output_dir
     render_mode = args.render_mode
     log_wandb = args.log_wandb
+    #*****Extend_Auf4)b*****
+    agent_type = args.agent
 
     # Create a random agent
-    agent = random_agent(gym.make(env_name).action_space)
+    #agent = random_agent(gym.make(env_name).action_space)
+
+    #*****Extend_Auf4)b*****
+    # Create the appropriate agent based on user selection
+    env = gym.make(env_name)
+    if agent_type == 'random':
+        agent = random_agent(env.action_space)
+    elif agent_type == 'dqn':
+        agent = DQNAgent(env, input_dim=env.observation_space.shape[0])
+    else:
+        raise ValueError(f"Unsupported agent type: {agent_type}")
 
     # Create the video
-    create_video(env_name, agent, output_dir, num_episodes, render_mode, args.log_wandb)
+    create_video(env_name, agent, output_dir, num_episodes, render_mode, agent_type, args.log_wandb)
+
+
 
 """
 Example usage:
@@ -94,4 +187,11 @@ Example usage:
     python videos.py --env CartPole-v1 --episodes 5 --output_dir ./videos --render_mode rgb_array  --log_wandb
     or
     python videos.py --env CartPole-v1 --episodes 1 --render_mode human
+
+    #*****Extend_Auf4)b*****
+    python videos.py --env CartPole-v1 --episodes 3 --output_dir ./videos --render_mode rgb_array --agent random
+
+    python videos.py --env CartPole-v1 --episodes 3 --output_dir ./videos --render_mode rgb_array --agent dqn
+
+
 """

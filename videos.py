@@ -37,7 +37,7 @@ def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_a
         state, _ = env.reset()
         done = False
         #*****Extend_Auf4)b*****
-        max_action_values = []  # List to store action values for plotting
+        action_values = []  # List to store action values for plotting
 
         frames = []
         while not done:
@@ -51,12 +51,10 @@ def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_a
 
             #*****Extend_Auf4)b*****
             if agent_type == 'dqn':
-                # Store the Q-value for the chosen action
-                #q_value = agent.get_action_values(state)[action]
+                # Store the Q-value for the chosen action in that state
                 #action_values.append(q_value)
-                # Store the maximum Q-value for the current state
-                max_q_value = np.max(agent.get_action_values(state))
-                max_action_values.append(max_q_value)
+                q_value = agent.compute_action_value(state, action)
+                action_values.append(q_value)
 
 
         if render_mode == 'rgb_array':
@@ -72,7 +70,7 @@ def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_a
             elif agent_type == 'dqn':
                 # Create frames with environment and action value plots
                 #side_by_side_frames = create_side_by_side_frames(frames, action_values)
-                side_by_side_frames = create_side_by_side_frames(frames,max_action_values)
+                side_by_side_frames = create_side_by_side_frames(frames,action_values)
                 clip = mpy.ImageSequenceClip(side_by_side_frames, fps=env.metadata.get('render_fps', 30))
 
             clip.write_videofile(video_path, codec='libx264')

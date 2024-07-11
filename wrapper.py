@@ -34,11 +34,10 @@ class Wrapper():
 
         def observation(self, obs):
             """
-            geschrieben von Artur! erstetz die zuvor geschriebenen step und reset Methoden.
-            modifies the obsertvation. Caution, not reward terminated and info.
             :param obs:observation to modify
             :return: grayscale "image" as an array
             """
+            print("in obs")
             if len(obs.shape) == 3 and obs.shape[2] == 3:
                 # Konvertieren des Bildes in Graustufen
                 obs = cv2.cvtColor(obs.astype('uint8'), cv2.COLOR_RGB2GRAY)
@@ -57,7 +56,7 @@ class Wrapper():
         """:param envi: environmnet that has to be changed"""
         self.env = self.RewardClipper(envi)
         self.env = self.Preprocessing(self.env)
-        self.env = gym.wrappers.FrameStack(self.env, 1)
+        self.env = gym.wrappers.FrameStack(self.env, 4)
 
     def get_env(self):
         """
@@ -81,6 +80,9 @@ def testPreProcessing():
     img_new = Image.fromarray(img_new.astype('uint8'))
     img_new.show()
 
+    process.reset()
+    process.step(process.action_space.sample())
+
 def testRewardClipping():
     """
     tests the @Wrapper.RewardClipper
@@ -96,5 +98,7 @@ envi.reset()
 x = envi.step(envi.action_space.sample())
 print("reward without clipping: " + str(x[1]))
 testRewardClipping()
+
+
 
 

@@ -54,7 +54,8 @@ class ReplayMemory():
         if len(self.memory) != self.args.replay:
             self.memory.append(exp)
         else:
-            self.summarizeReplays()
+            self.memory.popleft()
+            #self.summarizeReplays()
             self.memory.append(exp)
 
     def summarizeReplays(self):
@@ -79,8 +80,8 @@ class ReplayMemory():
         agg_reward = np.sum([exp[2] for exp in old_exp])
         agg_next_state = np.mean([exp[3] for exp in old_exp], axis=0)
 
-        aggregated_experience = (agg_state, agg_action, agg_reward, agg_next_state)
-        self.memory.appendleft(aggregated_experience)
+        agg_exp = (agg_state, agg_action, agg_reward, agg_next_state)
+        self.memory.appendleft(agg_exp)
 
     def get_exp(self):
         return random.sample(self.memory, self.args.batch)

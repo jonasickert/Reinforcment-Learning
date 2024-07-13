@@ -43,6 +43,11 @@ import argparse
 import random
 from collections import deque
 import numpy as np
+import gymnasium as gym
+import torch
+
+import networks
+
 
 class ReplayMemory():
 
@@ -86,25 +91,59 @@ class ReplayMemory():
     def get_exp(self):
         return random.sample(self.memory, self.args.batch)
 
-class NetworkTraining():
+class Training():
 
     def __init__(self, args):
         self.args = args
         self.replay_memory = ReplayMemory(args)
+        self.env: gym.Env = args.env
+        self.q_network = networks.QFunction(input_dim=7056, output_dim=len(self.env.action_space.n))
+        self.t_network = networks.QFunction(input_dim=7056, output_dim=len(self.env.action_space.n))
+        # Weights are random, not 0, weights at q and t different, havew to set weights
+        self.set_weights()
+
+    def set_weights(self):
+        self.t_network.load_state_dict(self.q_network.state_dict())
 
 
     def training(self):
-        print("übung macht den meister")
+        """
+        benutze Pseudocode wie im paper
+        """
+        exploration = 0
+        action = self.env.action_space.sample()
+        for episode in range(self.args.episodes):
+            start_sequenz = self.preprocessed = self.env.reset()
+            for t in range(1000):
+                if (exploration < self.args.expl_frame) or (np.random.random() is self.args.final_expl):
+                    action = self.env.action_space.sample()
+                else:
+                    action = self.dqn(self.preprocessed)
+                self.old_preprocessed = self.preprocessed
+                self.preprocessed, rew, terminated, info, done = self.env.step(action)
+                sequenze = [self.old_preprocessed, action, rew, self.preprocessed]
+                self.replay_memory.save_exp(sequenze)
+                self.minibatches = self.replay_memory.get_exp()
+                #
+                #
+                if np.mod(t, self.args.update_freq) == 0:
+                    self.set_weights()
 
+    def set_target_value(self):
+        print("set target value")
+
+    def calculate_loss(self):
+        print("calc loss")
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate a Random Agent in a Gymnasium environment.")
     parser.add_argument("--env", type=str, help="The environment to learn")
+    parser.add_argument("--episodes", type=int, help="how many episodes")
     parser.add_argument("--batch", type=int, default=32, help="size of the minibatch. number of replays in it.")
     parser.add_argument("--replay", type=int, default=1000000, help="memory size, storage of replays")
-    parser.add_argument("--update_freq", type=int, default=10000, help="Log results to Weights & Biases.")
+    parser.add_argument("--update_freq", type=int, default=10000, help="frequenc to update q_network.")
     parser.add_argument("--discount", type=float, default=0.99, help="discount of future rewards")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate")
     parser.add_argument("--gradient_mom", type=int, default=10, help="The number of episodes to run.")
@@ -117,4 +156,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    training = NetworkTraining(args=args)
+    training = Training(args=args)

@@ -1,61 +1,29 @@
-"""
-Add hyperparameters to argparse there.
-- environment to test
-- batchsize
-- replay memory size
-- update frequency
-- discount factor
-- learning rate
-- gradient momentum
-- initial exploration
-- final exploration
-- final exploration frame
-- no-op max
-
-- parser = argparse.ArgumentParser(description="Evaluate a Random Agent in a Gymnasium environment.")
-    # Define the argument for the Gym environment name
-    parser.add_argument("--env", type=str, required=True, help="The Gymnasium environment to use.")
-
-    #*****extend_auf4b*****
-    parser.add_argument("--agent", type=str, choices=["random", "dqn"], default="random", help="The type of agent to use.")
-    #**********************
-
-    # Define the argument for the number of episodes
-    parser.add_argument("--episodes", type=int, default=10, help="The number of episodes to run.")
-    # Parse the command-line arguments
-
-    parser.add_argument("--log_wandb", action="store_true", help="Log results to Weights & Biases.")
-
-
-
-Follow your paper for appropriate values.
-Write your code as efficient as possible since training can take hours to days. Consider tricks
-from pytorch optimization.ipynb (in our GitHub repository) for your code. Start to
-integrate them when your algorithm starts working. Some suggested improvements might
-not increase the speed, so benchmark them.
-Implement a time limit and environment step limit to terminate your code.
-
-
-
-
-"""
 import argparse
 import random
 from collections import deque
 import numpy as np
 import gymnasium as gym
 import torch
-
+import torch.nn as nn
+import torch.optim as optim
 import networks
 
 
 class ReplayMemory():
-
+    """Replay Memory, storage of experiences"""
     def __init__(self, args):
+        """
+        initialize the memory by maximal size of the storage
+        :param args: args from parser
+        """
         self.args = args
         self.memory = deque(maxlen=args.replay)
 
     def save_exp(self, exp):
+        """
+        saves the experiences. if memory is full, popleft, oldest experience, and append new on right
+        :param exp: experience to save
+        """
         if len(self.memory) != self.args.replay:
             self.memory.append(exp)
         else:
@@ -92,7 +60,9 @@ class ReplayMemory():
         return random.sample(self.memory, self.args.batch)
 
 class Training():
-
+    """
+    Training class with inits
+    """
     def __init__(self, args):
         self.args = args
         self.replay_memory = ReplayMemory(args)
@@ -101,39 +71,77 @@ class Training():
         self.t_network = networks.QFunction(input_dim=7056, output_dim=len(self.env.action_space.n))
         # Weights are random, not 0, weights at q and t different, havew to set weights
         self.set_weights()
+        self.opti = optim.Adam(self.q_network.parameters())
+        self.calc_loss = nn.MSELoss()
 
     def set_weights(self):
+        """
+        sets the weights from the q_network to the target_network
+        """
         self.t_network.load_state_dict(self.q_network.state_dict())
 
 
     def training(self):
         """
-        benutze Pseudocode wie im paper
+        training methods written the same as in the pseudocode
         """
         exploration = 0
+        # to count the number of explorations
         action = self.env.action_space.sample()
+        # declare of the action
         for episode in range(self.args.episodes):
-            start_sequenz = self.preprocessed = self.env.reset()
+            self.preprocessed = self.env.reset()
+            # at every start (reset) the start sequence is equal to the next state sequence.
             for t in range(1000):
                 if (exploration < self.args.expl_frame) or (np.random.random() is self.args.final_expl):
+                    # exploration phase not over or epsilon policy
                     action = self.env.action_space.sample()
                 else:
-                    action = self.dqn(self.preprocessed)
+                    action = np.argmax(self.q_network(self.preprocessed))
                 self.old_preprocessed = self.preprocessed
+                # before get the new state (preprocessed image), we have to save the current
+                # state as the old state.
                 self.preprocessed, rew, terminated, info, done = self.env.step(action)
-                sequenze = [self.old_preprocessed, action, rew, self.preprocessed]
-                self.replay_memory.save_exp(sequenze)
-                self.minibatches = self.replay_memory.get_exp()
+                experience = [self.old_preprocessed, action, rew, self.preprocessed]
+                self.replay_memory.save_exp(experience)
+                minibatches = self.replay_memory.get_exp()
+                action_values, target_values = self.set_target_value(minibatches)
+                self.calculate_loss(action_values, target_values)
                 #
-                #
-                if np.mod(t, self.args.update_freq) == 0:
+                if np.mod(t, self.args.update_freq) == 0 :
                     self.set_weights()
 
-    def set_target_value(self):
-        print("set target value")
+    def set_target_value(self, minibatches):
+        """
+        :param minibatches: the experiences to calculate the target values to
+        :return: the old action value and the target values
+        """
+        states = torch.cat(minibatches[0])
+        states = torch.FloatTensor(states)
+        actions = torch.cat(minibatches[1])
+        actions = torch.LongTensor(actions)
+        rewards = torch.cat(minibatches[2])
+        rewards = torch.FloatTensor(rewards)
+        next_states = torch.cat(minibatches[3])
+        next_states = torch.FloatTensor(next_states)
 
-    def calculate_loss(self):
-        print("calc loss")
+        action_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squezze(1)
+        # unsquezze: dimension hinzugefügt für gather, erwartet tensor (x,1)
+        # gather: Extrahieren der Q-Values
+        # anschließende squezze zum erstellen der Alten Form
+        # action value beinhaltet alle q_values für die aktion die in dem State ausgeführt wurde
+
+        target_values = self.t_network(next_states).max(1)[0]
+        return action_values, target_values
+
+    def calculate_loss(self, action_values, target_value):
+        """
+        calculates the loss
+        """
+        loss = self.calc_loss(action_values, target_value)
+        self.opti.zero_grad()
+        loss.backward()
+        self.opti.step()
 
 
 

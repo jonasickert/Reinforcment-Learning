@@ -58,7 +58,7 @@ class Training():
         self.env: gym.Env = args.env
         self.q_network = networks.QFunction(input_dim=7056, output_dim=len(self.env.action_space.n))
         self.t_network = networks.QFunction(input_dim=7056, output_dim=len(self.env.action_space.n))
-        # Weights are random, not 0, weights at q and t different, havew to set weights
+        # Weights are random, not 0, weights at q and t different, have to set weights
         self.set_weights()
         self.opti = optim.Adam(self.q_network.parameters())
         self.calc_loss = nn.MSELoss()

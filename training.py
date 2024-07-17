@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import random
 from collections import deque
 import numpy as np
@@ -28,41 +29,13 @@ class ReplayMemory():
             self.memory.append(exp)
         else:
             self.memory.popleft()
-            #self.summarizeReplays()
             self.memory.append(exp)
-
-    def summarizeReplays(self):
-        """
-        Idea: how to summarize? Replays are kind of sorted in the replay memory, summarizing neighbors
-        can create summarizers of replays which are kind of same.
-        How many should be summarized at once? 2, 10, 50 at a time? Has to be efficient!
-        Newer experiences are "better" the network has learned, the rewards are better, old experiences
-        are not as good.
-        Deque works as a stack. Possible to push left.
-        - Take 10 last experiences summarize them
-        - pushleft => experience is at the bottom of the stack
-        - When summarizing the next 10 experiences, the new experience contains the last experience
-        - and so on
-        """
-        old_exp = [self.memory.popleft() for i in range(10)]
-        agg_state = np.mean([exp[0] for exp in old_exp], axis=0)
-        # state is returned pixel array, npmean aggregate over every single pixel from every expereince,
-        # for example, every (x,y) pixel for experience 1 to 10. agg_state is a pixel array
-        agg_action = old_exp[-1][1]  # Letzte Aktion beibehalten oder eine Kombination verwenden
-        # takles action from last experience
-        agg_reward = np.sum([exp[2] for exp in old_exp])
-        agg_next_state = np.mean([exp[3] for exp in old_exp], axis=0)
-
-        agg_exp = (agg_state, agg_action, agg_reward, agg_next_state)
-        self.memory.appendleft(agg_exp)
 
     def get_exp(self):
         return random.sample(self.memory, self.args.batch)
 
 class Training():
-    """
-    Training class with inits
-    """
+    """Training class with inits"""
     def __init__(self, args):
         self.args = args
         self.replay_memory = ReplayMemory(args)
@@ -73,28 +46,31 @@ class Training():
         self.set_weights()
         self.opti = optim.Adam(self.q_network.parameters())
         self.calc_loss = nn.MSELoss()
+        self.loss_curve = []
 
     def set_weights(self):
-        """
-        sets the weights from the q_network to the target_network
-        """
+        """sets the weights from the q_network to the target_network"""
         self.t_network.load_state_dict(self.q_network.state_dict())
 
 
     def training(self):
-        """
-        training methods written the same as in the pseudocode
-        """
+        """training methods written the same as in the pseudocode"""
         exploration = 0
+        iteration = 0
         # to count the number of explorations
         action = self.env.action_space.sample()
         # declare of the action
         for episode in range(self.args.episodes):
             self.preprocessed = self.env.reset()
             # at every start (reset) the start sequence is equal to the next state sequence.
-            for t in range(1000):
+            losses = []
+            start_time = datetime.datetime
+            time_for_episode_in_sec = 360
+            for step in range(1000):
+                if datetime.datetime -start_time >= time_for_episode_in_sec: break
                 if (exploration < self.args.expl_frame) or (np.random.random() is self.args.final_expl):
                     # exploration phase not over or epsilon policy
+                    exploration += 1
                     action = self.env.action_space.sample()
                 else:
                     action = np.argmax(self.q_network(self.preprocessed))
@@ -102,14 +78,18 @@ class Training():
                 # before get the new state (preprocessed image), we have to save the current
                 # state as the old state.
                 self.preprocessed, rew, terminated, info, done = self.env.step(action)
-                experience = [self.old_preprocessed, action, rew, self.preprocessed]
+                experience = [self.old_preprocessed, action, rew, self.preprocessed, done]
                 self.replay_memory.save_exp(experience)
                 minibatches = self.replay_memory.get_exp()
-                action_values, target_values = self.set_target_value(minibatches)
-                self.calculate_loss(action_values, target_values)
-                #
-                if np.mod(t, self.args.update_freq) == 0 :
+                action_values, target_action_values = self.set_target_value(minibatches)
+                loss = self.calculate_loss(action_values, target_action_values)
+                losses.append(loss.detach().clone())
+                iteration += 1
+                if np.mod(iteration, self.args.update_freq) == 0 :
                     self.set_weights()
+                if terminated:
+                    self.preprocessed = self.env.reset()
+            self.loss_curve.append(torch.stack(losses).mean().item())
 
     def set_target_value(self, minibatches):
         """
@@ -124,24 +104,31 @@ class Training():
         rewards = torch.FloatTensor(rewards)
         next_states = torch.cat(minibatches[3])
         next_states = torch.FloatTensor(next_states)
+        dones = torch.cat(minibatches[4])
+        dones = torch.FloatTensor(dones)
 
         action_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squezze(1)
-        # unsquezze: dimension hinzugefügt für gather, erwartet tensor (x,1)
+        # unsqueeze: dimension hinzugefügt für gather, erwartet tensor (x,1)
         # gather: Extrahieren der Q-Values
-        # anschließende squezze zum erstellen der Alten Form
+        # anschließende squeeze zum Erstellen der Alten Form
         # action value beinhaltet alle q_values für die aktion die in dem State ausgeführt wurde
 
-        target_values = self.t_network(next_states).max(1)[0]
-        return action_values, target_values
+        with torch.no_grad():
+            target_values = self.t_network(next_states).max(1)[0]
+
+        target_action_values = (self.args.discount * target_values * (1-dones)) + rewards
+        # case 1: done is true, 1, no further rewards, just current rewards, y = x*(1-1)+r = r
+        # case 2: not done, 0, further rewards, y = x + r
+
+        return action_values, target_action_values
 
     def calculate_loss(self, action_values, target_value):
-        """
-        calculates the loss
-        """
+        """ calculates the loss """
         loss = self.calc_loss(action_values, target_value)
         self.opti.zero_grad()
         loss.backward()
         self.opti.step()
+        return loss
 
 
 

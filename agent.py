@@ -77,10 +77,16 @@ class DQNAgent():
         torch.load(self.dqn.load_state_dict(torch.load(name)))
 
 
+
 """
 Extend your agent class with functionality for training the networks. 
 This is the implementation of the RL algorithm and is the main part of this project.
-mplement a time limit and environment step limit to terminate your code.
+
+
+we need the stuff like in jupyter lab:
+- predict
+
+
 """
 
 

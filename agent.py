@@ -86,6 +86,7 @@ This is the implementation of the RL algorithm and is the main part of this proj
 we need the stuff like in jupyter lab:
 - predict
 
+- sollen wir in DQAAgent das training ausführen?
 
 """
 

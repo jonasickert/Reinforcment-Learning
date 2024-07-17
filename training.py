@@ -13,29 +13,45 @@ import networks
 class ReplayMemory():
     """Replay Memory, storage of experiences"""
     def __init__(self, args):
-        """
-        initialize the memory by maximal size of the storage
-        :param args: args from parser
+        """initialize the memory by maximal size of the memory
+        :param args: args from parser, maximal size, size = number of arrays in it
         """
         self.args = args
         self.memory = deque(maxlen=args.replay)
 
     def save_exp(self, exp):
         """
-        saves the experiences. if memory is full, popleft, oldest experience, and append new on right
-        :param exp: experience to save
+        Saves the experiences. if memory is full, popleft, oldest experience, and append new on right
+        Has to be [state, action, reward, state, done], if not => no save of experience
+        :param exp: experience that has to be saved
         """
-        if len(self.memory) != self.args.replay:
-            self.memory.append(exp)
+        if exp.__len__() == 5:
+            if len(self.memory) != self.args.replay:
+                self.memory.append(exp)
+            else:
+                self.memory.popleft()
+                self.memory.append(exp)
         else:
-            self.memory.popleft()
-            self.memory.append(exp)
+            print("too much or too low elements in experience")
 
     def get_exp(self):
+        """
+        :return: returns a minibatch of the size of args.batch with random experiences
+        """
         return random.sample(self.memory, self.args.batch)
 
 class Training():
-    """Training class with inits"""
+    """
+    - Training class with inits
+    - self.args: arguments from cmdl, necessary for training details.
+    - self.replay_memory: the replay memory that is used to store and get experiences
+    - self.env: the environment we have to perform reset() and step() to get information to calculate everything
+    - self.q_network: network we are training with
+    - self.t_network, target network
+    - self.opti = optimer that we use
+    - self.calc_loss: the type of loss we want to calculate
+    - self.loss_curve: for showing the
+    """
     def __init__(self, args):
         self.args = args
         self.replay_memory = ReplayMemory(args)
@@ -46,85 +62,122 @@ class Training():
         self.set_weights()
         self.opti = optim.Adam(self.q_network.parameters())
         self.calc_loss = nn.MSELoss()
-        self.loss_curve = []
+
 
     def set_weights(self):
         """sets the weights from the q_network to the target_network"""
         self.t_network.load_state_dict(self.q_network.state_dict())
 
 
-    def training(self):
-        """training methods written the same as in the pseudocode"""
+    def start_training(self):
+        """
+        training methods written the same as in the pseudocode
+        """
         exploration = 0
-        iteration = 0
-        # to count the number of explorations
-        action = self.env.action_space.sample()
-        # declare of the action
+        # to count the number of explorations, after reaching the limit, we use eps.-greedy
+        update_counter = 0
+        # to count the number of steps we have to take before update q_network to t_network
+        losses = []
+        # to save the losses we calculated, after every use for loss_curve its empty
+        self.envsteps = 0
+        # to count the environment steps we did not in a episode, in a whole training process
+        used_minibatches = 0
+        # to count the used minibatches to aggregate over loss to calc loss_curve
+        self.loss_curve = []
+        # contains the mean of every 25th minibatch
         for episode in range(self.args.episodes):
+
             self.preprocessed = self.env.reset()
             # at every start (reset) the start sequence is equal to the next state sequence.
-            losses = []
-            start_time = datetime.datetime
+            # there is no pre preimage
+
+            start_time = datetime.datetime.now()
+            # episodes can run for x steps or y time
+
             time_for_episode_in_sec = 360
-            for step in range(1000):
-                if datetime.datetime -start_time >= time_for_episode_in_sec: break
+            # time episodes are allowed to take
+
+            for t in range(1000):
+
+                if datetime.datetime.now()-start_time >= datetime.timedelta(seconds=time_for_episode_in_sec): break
+                # before going into a new step, we proof if time limit is reached for that episode.
+
                 if (exploration < self.args.expl_frame) or (np.random.random() is self.args.final_expl):
-                    # exploration phase not over or epsilon policy
                     exploration += 1
                     action = self.env.action_space.sample()
+                # choose the action random if eps.-greedy or still in exploration phase
+
                 else:
                     action = np.argmax(self.q_network(self.preprocessed))
+                # if not eps.-greedy or exploration, we get take the best action that we can when we put it into
+                # the q_network
+
                 self.old_preprocessed = self.preprocessed
                 # before get the new state (preprocessed image), we have to save the current
                 # state as the old state.
+
                 self.preprocessed, rew, terminated, info, done = self.env.step(action)
+                self.envsteps += 1
+                # perform action on environment to get the observation
+
                 experience = [self.old_preprocessed, action, rew, self.preprocessed, done]
                 self.replay_memory.save_exp(experience)
+                # save the experience in replay_memory
+
                 minibatches = self.replay_memory.get_exp()
+                used_minibatches += 1
+                # we take random experiences of size self.args.batch
+
                 action_values, target_action_values = self.set_target_value(minibatches)
+                # we set the target_action_value for every action_value
+
                 loss = self.calculate_loss(action_values, target_action_values)
                 losses.append(loss.detach().clone())
-                iteration += 1
-                if np.mod(iteration, self.args.update_freq) == 0 :
+                # claculating the loss and append it to losses
+
+                update_counter += 1
+                # the first step is done, one closer to update
+                if np.mod(update_counter, self.args.update_freq) == 0 :
                     self.set_weights()
+                # done steps are the same as update_frequency, t_network has to be updated
                 if terminated:
                     self.preprocessed = self.env.reset()
-            self.loss_curve.append(torch.stack(losses).mean().item())
+                # game is terminated, we have to reset it go keep going
+                if used_minibatches%25 == 0:
+                    self.loss_curve.append(torch.stack(losses).mean().item())
+                    losses = []
+                # 25 minibatches were used, we have to tage the mean of the curent losses
 
     def set_target_value(self, minibatches):
         """
         :param minibatches: the experiences to calculate the target values to
         :return: the old action value and the target values
         """
-        states = torch.cat(minibatches[0])
-        states = torch.FloatTensor(states)
-        actions = torch.cat(minibatches[1])
-        actions = torch.LongTensor(actions)
-        rewards = torch.cat(minibatches[2])
-        rewards = torch.FloatTensor(rewards)
-        next_states = torch.cat(minibatches[3])
-        next_states = torch.FloatTensor(next_states)
-        dones = torch.cat(minibatches[4])
-        dones = torch.FloatTensor(dones)
+        rewards = torch.tensor([reward[0] for reward in minibatches], dtype=torch.float64)
+        next_states = torch.tensor([nstate[0] for nstate in minibatches], dtype=torch.float64)
+        dones = torch.tensor([done[0] for done in minibatches], dtype=torch.float64)
 
+        with torch.no_grad():
+            target_values = self.t_network(next_states).max(1)[0]
+        # get the action_values for the next_states
+
+        target_action_values = (self.args.discount * target_values * (1-dones)) + rewards
+        # case 1: done is true, 1, no further rewards, just current rewards, y = x*(1-1)+r = r
+        # case 2: not done, 0, further rewards, y = x + r
+
+        return target_action_values
+
+    def calculate_loss(self, target_action_value, minibatches):
+        """ calculates the loss """
+        states = torch.tensor([state[0] for state in minibatches], dtype=torch.float64)
+        actions = torch.tensor([action[0] for action in minibatches], dtype=torch.float64)
         action_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squezze(1)
         # unsqueeze: dimension hinzugefügt für gather, erwartet tensor (x,1)
         # gather: Extrahieren der Q-Values
         # anschließende squeeze zum Erstellen der Alten Form
         # action value beinhaltet alle q_values für die aktion die in dem State ausgeführt wurde
 
-        with torch.no_grad():
-            target_values = self.t_network(next_states).max(1)[0]
-
-        target_action_values = (self.args.discount * target_values * (1-dones)) + rewards
-        # case 1: done is true, 1, no further rewards, just current rewards, y = x*(1-1)+r = r
-        # case 2: not done, 0, further rewards, y = x + r
-
-        return action_values, target_action_values
-
-    def calculate_loss(self, action_values, target_value):
-        """ calculates the loss """
-        loss = self.calc_loss(action_values, target_value)
+        loss = self.calc_loss(action_values, target_action_value)
         self.opti.zero_grad()
         loss.backward()
         self.opti.step()

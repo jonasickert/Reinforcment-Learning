@@ -8,6 +8,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import networks
+from agent import DQNAgent #Maryem
+from evaluate import evaluate_trained_model #Maryem
 
 
 class ReplayMemory():
@@ -25,22 +27,31 @@ class ReplayMemory():
         Has to be [state, action, reward, state, done], if not => no save of experience
         :param exp: experience that has to be saved
         """
-        if exp.__len__() == 5:
-            if len(self.memory) != self.args.replay:
-                self.memory.append(exp)
-            else:
-                self.memory.popleft()
-                self.memory.append(exp)
+        # jonas: if exp.__len__() == 5:
+        # jonas: if len(self.memory) != self.args.replay:
+        # jonas:     self.memory.append(exp)
+        # jonas: else:
+        # jonas:     self.memory.popleft()
+        # jonas:     self.memory.append(exp)
+        # jonas: else:
+        # jonas:     print("too much or too low elements in experience")
+        # Maryem:
+        if len(exp) == 5:
+            self.memory.append(exp)
         else:
-            print("too much or too low elements in experience")
+            print("Too many or too few elements in experience")
 
     def get_exp(self):
         """
         :return: returns a minibatch of the size of args.batch with random experiences
         """
+        # jonas: return random.sample(self.memory, self.args.batch)
+        # Maryem:
+        if len(self.memory) < self.args.batch:
+            return []  # Not enough samples yet
         return random.sample(self.memory, self.args.batch)
 
-class Training():
+class Training:
     """
     - Training class with inits
     - self.args: arguments from cmdl, necessary for training details.
@@ -48,19 +59,26 @@ class Training():
     - self.env: the environment we have to perform reset() and step() to get information to calculate everything
     - self.q_network: network we are training with
     - self.t_network, target network
-    - self.opti = optimer that we use
+    - self.opti = optimizer that we use
     - self.calc_loss: the type of loss we want to calculate
     - self.loss_curve: for showing the
     """
     def __init__(self, args):
         self.args = args
         self.replay_memory = ReplayMemory(args)
-        self.env: gym.Env = args.env
-        self.q_network = networks.QFunction(input_dim=7056, output_dim=len(self.env.action_space.n))
-        self.t_network = networks.QFunction(input_dim=7056, output_dim=len(self.env.action_space.n))
+        # jonas: self.env: gym.Env = args.env
+        self.env: gym.Env = gym.make(args.env) #Maryem
+        self.input_dim = self.env.observation_space.shape[0] #Maryem
+        self.output_dim = self.env.action_space.n #Maryem
+        # jonas: self.q_network = networks.QFunction(input_dim=7056, output_dim=len(self.env.action_space.n))
+        # jonas: self.t_network = networks.QFunction(input_dim=7056, output_dim=len(self.env.action_space.n))
+        # Maryem:
+        self.q_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim)
+        self.t_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim)
         # Weights are random, not 0, weights at q and t different, have to set weights
         self.set_weights()
-        self.opti = optim.Adam(self.q_network.parameters())
+        # jonas :self.opti = optim.Adam(self.q_network.parameters())
+        self.opti = optim.Adam(self.q_network.parameters(), lr=self.args.learning_rate) #Maryem
         self.calc_loss = nn.MSELoss()
 
 
@@ -85,9 +103,12 @@ class Training():
         # to count the used minibatches to aggregate over loss to calc loss_curve
         self.loss_curve = []
         # contains the mean of every 25th minibatch
+
+        evaluation_steps = 100  # Evaluate every 100 steps #Maryem
+
         for episode in range(self.args.episodes):
 
-            self.preprocessed = self.env.reset()
+            self.preprocessed, _ = self.env.reset()
             # at every start (reset) the start sequence is equal to the next state sequence.
             # there is no pre preimage
 
@@ -98,40 +119,54 @@ class Training():
             # time episodes are allowed to take
 
             for t in range(1000):
-
                 if datetime.datetime.now()-start_time >= datetime.timedelta(seconds=time_for_episode_in_sec): break
                 # before going into a new step, we proof if time limit is reached for that episode.
+                            
 
-                if (exploration < self.args.expl_frame) or (np.random.random() is self.args.final_expl):
+                # jonas: if (exploration < self.args.expl_frame) or (np.random.random() is self.args.final_expl):
+                # jonas:     exploration += 1
+                # jonas:     action = self.env.action_space.sample()
+                # Maryem:
+                if (exploration < self.args.expl_frame) or (np.random.random() < self.args.final_expl):
                     exploration += 1
                     action = self.env.action_space.sample()
                 # choose the action random if eps.-greedy or still in exploration phase
 
                 else:
-                    action = np.argmax(self.q_network(self.preprocessed))
+                    # jonas: action = np.argmax(self.q_network(self.preprocessed))
                 # if not eps.-greedy or exploration, we get take the best action that we can when we put it into
                 # the q_network
+                    # Maryem:
+                    preprocessed_tensor = torch.tensor(self.preprocessed, dtype=torch.float32).unsqueeze(0)
+                    action = np.argmax(self.q_network(preprocessed_tensor).detach().numpy())
 
                 self.old_preprocessed = self.preprocessed
                 # before get the new state (preprocessed image), we have to save the current
                 # state as the old state.
-
-                self.preprocessed, rew, terminated, info, done = self.env.step(action)
+                # jonas: self.preprocessed, rew, terminated, info, done = self.env.step(action)
+                # Maryem:
+                self.preprocessed, rew, terminated, done, _ = self.env.step(action)
                 self.envsteps += 1
                 # perform action on environment to get the observation
 
-                experience = [self.old_preprocessed, action, rew, self.preprocessed, done]
+                experience = [self.old_preprocessed, action, rew, self.preprocessed, terminated]
                 self.replay_memory.save_exp(experience)
                 # save the experience in replay_memory
 
                 minibatches = self.replay_memory.get_exp()
-                used_minibatches += 1
+                # jonas: used_minibatches += 1
                 # we take random experiences of size self.args.batch
+                
+                # Maryem:
+                if not minibatches:
+                    continue
 
-                action_values, target_action_values = self.set_target_value(minibatches)
+                # jonas: action_values, target_action_values = self.set_target_value(minibatches)
                 # we set the target_action_value for every action_value
-
-                loss = self.calculate_loss(action_values, target_action_values)
+                # jonas: loss = self.calculate_loss(action_values, target_action_values)
+                # Maryem:
+                target_action_values = self.set_target_value(minibatches)
+                loss = self.calculate_loss(target_action_values, minibatches)
                 losses.append(loss.detach().clone())
                 # claculating the loss and append it to losses
 
@@ -141,46 +176,81 @@ class Training():
                     self.set_weights()
                 # done steps are the same as update_frequency, t_network has to be updated
                 if terminated:
-                    self.preprocessed = self.env.reset()
-                # game is terminated, we have to reset it go keep going
-                if used_minibatches%25 == 0:
-                    self.loss_curve.append(torch.stack(losses).mean().item())
+                    # jonas: self.preprocessed = self.env.reset()
+                # game is terminated, we have to reset it go keep going    
+                    # Maryem:
+                    self.preprocessed, _ = self.env.reset()
+
+                if used_minibatches % 25 == 0:
+                    mean_loss = torch.stack(losses).mean().item()
+                    self.loss_curve.append(mean_loss)
                     losses = []
                 # 25 minibatches were used, we have to tage the mean of the curent losses
+                    print(f"Episode: {episode}, Step: {t}, Exploration: {exploration}, Mean Loss: {mean_loss}") #Maryem
+
+        print("Training completed.") #Maryem
+        # jonas: # Maryem:
+        agent = DQNAgent(env=self.env, input_dim=self.input_dim)
+        agent.save_network('final_model.pth')  # Save the final trained model
+
+        # Final evaluation after training completes #Maryem
+        print("Performing final evaluation...") #Maryem
+        evaluate_trained_model(self.args.env, 'final_model.pth', num_episodes=self.args.episodes) #Maryem
 
     def set_target_value(self, minibatches):
         """
         :param minibatches: the experiences to calculate the target values to
         :return: the old action value and the target values
         """
-        rewards = torch.tensor([reward[0] for reward in minibatches], dtype=torch.float64)
-        next_states = torch.tensor([nstate[0] for nstate in minibatches], dtype=torch.float64)
-        dones = torch.tensor([done[0] for done in minibatches], dtype=torch.float64)
+        # jonas: rewards = torch.tensor([reward[0] for reward in minibatches], dtype=torch.float64)
+        # jonas: next_states = torch.tensor([nstate[0] for nstate in minibatches], dtype=torch.float64)
+        # jonas: dones = torch.tensor([done[0] for done in minibatches], dtype=torch.float64)
+        # Maryem:
+        rewards = torch.tensor([reward[2] for reward in minibatches], dtype=torch.float32)
+        next_states = torch.tensor([nstate[3] for nstate in minibatches], dtype=torch.float32)
+        dones = torch.tensor([done[4] for done in minibatches], dtype=torch.float32)
+
+        if next_states.shape[0] == 0: #Maryem
+            print("No next states available. Skipping target value computation.") #Maryem
+            return None, None #Maryem
 
         with torch.no_grad():
+            # jonas: target_values = self.t_network(next_states).max(1)[0]
+            # Maryem:
+            next_states = next_states.view(len(next_states), -1)  # Reshape to (batch_size, input_dim)
             target_values = self.t_network(next_states).max(1)[0]
         # get the action_values for the next_states
 
-        target_action_values = (self.args.discount * target_values * (1-dones)) + rewards
+        target_action_values = (self.args.discount * target_values * (1 - dones)) + rewards
         # case 1: done is true, 1, no further rewards, just current rewards, y = x*(1-1)+r = r
         # case 2: not done, 0, further rewards, y = x + r
 
         return target_action_values
 
-    def calculate_loss(self, target_action_value, minibatches):
-        """ calculates the loss """
-        states = torch.tensor([state[0] for state in minibatches], dtype=torch.float64)
-        actions = torch.tensor([action[0] for action in minibatches], dtype=torch.float64)
-        action_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squezze(1)
+    def calculate_loss(self, target_action_values, minibatches):
+        # jonas: states = torch.tensor([state[0] for state in minibatches], dtype=torch.float64)
+        # jonas: actions = torch.tensor([action[0] for action in minibatches], dtype=torch.float64)
+        # jonas: action_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squezze(1)
         # unsqueeze: dimension hinzugefügt für gather, erwartet tensor (x,1)
         # gather: Extrahieren der Q-Values
         # anschließende squeeze zum Erstellen der Alten Form
         # action value beinhaltet alle q_values für die aktion die in dem State ausgeführt wurde
+        # jonas: loss = self.calc_loss(action_values, target_action_value)
+        # Maryem:
+        if target_action_values is None:
+            print("No target action values available. Skipping loss computation.")
+            return torch.tensor(0.0)
 
-        loss = self.calc_loss(action_values, target_action_value)
+        states = torch.tensor([state[0] for state in minibatches], dtype=torch.float32)
+        actions = torch.tensor([action[1] for action in minibatches], dtype=torch.int64)
+        states = states.view(len(states), -1)  # Reshape to (batch_size, input_dim)
+        action_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squeeze(1)
+
+        loss = self.calc_loss(action_values, target_action_values)
         self.opti.zero_grad()
         loss.backward()
         self.opti.step()
+
         return loss
 
 
@@ -205,3 +275,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     training = Training(args=args)
+    #Maryem 
+    training.start_training()
+
+
+#example use 
+ # python training.py --env 'CartPole-v1' --episodes 20 --batch 32 --replay 100000 --update_freq 10000 --discount 0.99 --learning_rate 0.001 --final_expl 0.1 --expl_frame 1000000 --replay_start_size 50000 --noop 30     
+

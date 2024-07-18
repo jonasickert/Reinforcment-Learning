@@ -73,6 +73,33 @@ def evaluate_agent(env_name, agent_type='random', num_episodes=10, log_wandb= Fa
         wandb.finish()
 
 
+def evaluate_trained_model(env_name, model_path, num_episodes=10):
+    env = gym.make(env_name)
+    input_dim = env.observation_space.shape[0]
+    agent = DQNAgent(env, input_dim)
+    agent.load_network(model_path)  # Load the trained model weights
+
+    total_rewards = []
+
+    for episode in range(num_episodes):
+        state, _ = env.reset()
+        done = False
+        episode_reward = 0
+
+        while not done:
+            action = agent.select_action(state)  # Select action using the trained DQN agent
+            next_state, reward, done, _, _ = env.step(action)
+            episode_reward += reward
+            state = next_state
+
+        total_rewards.append(episode_reward)
+        print(f"Episode {episode + 1}: Total reward: {episode_reward}")
+
+    avg_reward = np.mean(total_rewards)
+    print(f"Average reward over {num_episodes} episodes: {avg_reward}")
+
+    env.close()
+
 
 if __name__ == "__main__":
     # Create an argument parser for command-line arguments

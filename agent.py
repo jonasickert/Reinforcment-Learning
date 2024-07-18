@@ -62,21 +62,26 @@ class DQNAgent():
         # Return the Q-value corresponding to the given action
         return action_values[action]
 
-    #code von Jonas
-    def save_network(self, name):
+    
+    #jonas: def save_network(self, name):
         """ saves the network parameters as name
         :param name: of the save
         """
-        torch.save(self.dqn.state_dict(), name)
+    #jonas:    torch.save(self.dqn.state_dict(), name)
 
-    #code von Jonas
-    def load_network(self, name):
+    
+    #jonas:def load_network(self, name):
         """ load the network
         :param name: of the loaded network
         """
-        torch.load(self.dqn.load_state_dict(torch.load(name)))
+    #jonas:    torch.load(self.dqn.load_state_dict(torch.load(name)))
 
+    #Maryem :
+    def save_network(self, file_path):
+        torch.save(self.dqn.state_dict(), file_path)
 
+    def load_network(self, file_path):
+        self.dqn.load_state_dict(torch.load(file_path))
 
 """
 Extend your agent class with functionality for training the networks. 

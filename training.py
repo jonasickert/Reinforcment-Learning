@@ -80,122 +80,80 @@ class Training:
         # jonas :self.opti = optim.Adam(self.q_network.parameters())
         self.opti = optim.Adam(self.q_network.parameters(), lr=self.args.learning_rate) #Maryem
         self.calc_loss = nn.MSELoss()
-
+        self.steps_done = 0
 
     def set_weights(self):
-        """sets the weights from the q_network to the target_network"""
         self.t_network.load_state_dict(self.q_network.state_dict())
 
+class Training:
+    def __init__(self, args):
+        self.args = args
+        self.replay_memory = ReplayMemory(args)
+        self.env = gym.make(args.env)
+        self.input_dim = self.env.observation_space.shape[0]
+        self.output_dim = self.env.action_space.n
+        self.q_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim)
+        self.t_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim)
+        self.set_weights()
+        self.opti = optim.Adam(self.q_network.parameters(), lr=self.args.learning_rate)
+        self.calc_loss = nn.MSELoss()
+        self.steps_done = 0
+
+    def set_weights(self):
+        self.t_network.load_state_dict(self.q_network.state_dict())
 
     def start_training(self):
-        """
-        training methods written the same as in the pseudocode
-        """
-        exploration = 0
-        # to count the number of explorations, after reaching the limit, we use eps.-greedy
-        update_counter = 0
-        # to count the number of steps we have to take before update q_network to t_network
-        losses = []
-        # to save the losses we calculated, after every use for loss_curve its empty
-        self.envsteps = 0
-        # to count the environment steps we did not in a episode, in a whole training process
-        used_minibatches = 0
-        # to count the used minibatches to aggregate over loss to calc loss_curve
-        self.loss_curve = []
-        # contains the mean of every 25th minibatch
-
-        evaluation_steps = 100  # Evaluate every 100 steps #Maryem
-
         for episode in range(self.args.episodes):
-
-            self.preprocessed, _ = self.env.reset()
-            # at every start (reset) the start sequence is equal to the next state sequence.
-            # there is no pre preimage
-
+            state, _ = self.env.reset()
+            total_reward = 0
+            
             start_time = datetime.datetime.now()
-            # episodes can run for x steps or y time
-
-            time_for_episode_in_sec = 360
-            # time episodes are allowed to take
 
             for t in range(1000):
-                if datetime.datetime.now()-start_time >= datetime.timedelta(seconds=time_for_episode_in_sec): break
-                # before going into a new step, we proof if time limit is reached for that episode.
-                            
+                if datetime.datetime.now() - start_time >= datetime.timedelta(seconds=360):
+                    break
 
-                # jonas: if (exploration < self.args.expl_frame) or (np.random.random() is self.args.final_expl):
-                # jonas:     exploration += 1
-                # jonas:     action = self.env.action_space.sample()
-                # Maryem:
-                if (exploration < self.args.expl_frame) or (np.random.random() < self.args.final_expl):
-                    exploration += 1
+                self.steps_done += 1
+                exploration_rate = self.args.final_expl + (1 - self.args.final_expl) * np.exp(-1. * self.steps_done / self.args.expl_frame)
+
+                if np.random.random() < exploration_rate:
                     action = self.env.action_space.sample()
-                # choose the action random if eps.-greedy or still in exploration phase
-
                 else:
-                    # jonas: action = np.argmax(self.q_network(self.preprocessed))
-                # if not eps.-greedy or exploration, we get take the best action that we can when we put it into
-                # the q_network
-                    # Maryem:
-                    preprocessed_tensor = torch.tensor(self.preprocessed, dtype=torch.float32).unsqueeze(0)
-                    action = np.argmax(self.q_network(preprocessed_tensor).detach().numpy())
+                    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+                    with torch.no_grad():
+                        action = np.argmax(self.q_network(state_tensor).numpy())
 
-                self.old_preprocessed = self.preprocessed
-                # before get the new state (preprocessed image), we have to save the current
-                # state as the old state.
-                # jonas: self.preprocessed, rew, terminated, info, done = self.env.step(action)
-                # Maryem:
-                self.preprocessed, rew, terminated, done, _ = self.env.step(action)
-                self.envsteps += 1
-                # perform action on environment to get the observation
+                next_state, reward, done, _, _ = self.env.step(action)
+                total_reward += reward
 
-                experience = [self.old_preprocessed, action, rew, self.preprocessed, terminated]
+                experience = [state, action, reward, next_state, done]
                 self.replay_memory.save_exp(experience)
-                # save the experience in replay_memory
+                state = next_state
 
                 minibatches = self.replay_memory.get_exp()
-                # jonas: used_minibatches += 1
-                # we take random experiences of size self.args.batch
-                
-                # Maryem:
-                if not minibatches:
-                    continue
+                if minibatches:
+                    target_action_values = self.set_target_value(minibatches)
+                    loss = self.calculate_loss(target_action_values, minibatches)
+                    self.opti.zero_grad()
+                    loss.backward()
+                    self.opti.step()
 
-                # jonas: action_values, target_action_values = self.set_target_value(minibatches)
-                # we set the target_action_value for every action_value
-                # jonas: loss = self.calculate_loss(action_values, target_action_values)
-                # Maryem:
-                target_action_values = self.set_target_value(minibatches)
-                loss = self.calculate_loss(target_action_values, minibatches)
-                losses.append(loss.detach().clone())
-                # claculating the loss and append it to losses
+                    if self.steps_done % self.args.update_freq == 0:
+                        self.set_weights()
+                    print(f"Episode: {episode}, Step: {t}, Loss: {loss.item()}")    
 
-                update_counter += 1
-                # the first step is done, one closer to update
-                if np.mod(update_counter, self.args.update_freq) == 0 :
-                    self.set_weights()
-                # done steps are the same as update_frequency, t_network has to be updated
-                if terminated:
-                    # jonas: self.preprocessed = self.env.reset()
-                # game is terminated, we have to reset it go keep going    
-                    # Maryem:
-                    self.preprocessed, _ = self.env.reset()
+                    if done:
+                        break
 
-                if used_minibatches % 25 == 0:
-                    mean_loss = torch.stack(losses).mean().item()
-                    self.loss_curve.append(mean_loss)
-                    losses = []
-                # 25 minibatches were used, we have to tage the mean of the curent losses
-                    print(f"Episode: {episode}, Step: {t}, Exploration: {exploration}, Mean Loss: {mean_loss}") #Maryem
+            print(f"Episode: {episode}, Total Reward: {total_reward}")
 
-        print("Training completed.") #Maryem
-        # jonas: # Maryem:
-        agent = DQNAgent(env=self.env, input_dim=self.input_dim)
-        agent.save_network('final_model.pth')  # Save the final trained model
-
-        # Final evaluation after training completes #Maryem
-        print("Performing final evaluation...") #Maryem
-        evaluate_trained_model(self.args.env, 'final_model.pth', num_episodes=self.args.episodes) #Maryem
+            if (episode + 1) % 100 == 0:  # Evaluate every 10 episodes
+                print("Evaluating the model...")
+                filename = f"final_model_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
+                torch.save(self.q_network.state_dict(), filename)
+                evaluate_trained_model(self.args.env, filename, num_episodes=10) 
+        
+        print("Training completed.")
 
     def set_target_value(self, minibatches):
         """
@@ -212,7 +170,7 @@ class Training:
 
         if next_states.shape[0] == 0: #Maryem
             print("No next states available. Skipping target value computation.") #Maryem
-            return None, None #Maryem
+            return torch.tensor([]) #Maryem
 
         with torch.no_grad():
             # jonas: target_values = self.t_network(next_states).max(1)[0]
@@ -237,7 +195,7 @@ class Training:
         # action value beinhaltet alle q_values für die aktion die in dem State ausgeführt wurde
         # jonas: loss = self.calc_loss(action_values, target_action_value)
         # Maryem:
-        if target_action_values is None:
+        if len(target_action_values) == 0:
             print("No target action values available. Skipping loss computation.")
             return torch.tensor(0.0)
 
@@ -247,38 +205,28 @@ class Training:
         action_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squeeze(1)
 
         loss = self.calc_loss(action_values, target_action_values)
-        self.opti.zero_grad()
-        loss.backward()
-        self.opti.step()
-
         return loss
 
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluate a Random Agent in a Gymnasium environment.")
+    parser = argparse.ArgumentParser(description="Train a DQN agent.")
     parser.add_argument("--env", type=str, help="The environment to learn")
-    parser.add_argument("--episodes", type=int, help="how many episodes")
-    parser.add_argument("--batch", type=int, default=32, help="size of the minibatch. number of replays in it.")
-    parser.add_argument("--replay", type=int, default=1000000, help="memory size, storage of replays")
-    parser.add_argument("--update_freq", type=int, default=10000, help="frequenc to update q_network.")
-    parser.add_argument("--discount", type=float, default=0.99, help="discount of future rewards")
-    parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate")
-    parser.add_argument("--gradient_mom", type=int, default=10, help="The number of episodes to run.")
-    # parser.add_argument("--init_expl", action="store_true", help="Log results to Weights & Biases.")
-    # can be done in hard coded
-    parser.add_argument("--final_expl", type=float, default=0.1, help="exploration rate after initial exploration phase.")
-    parser.add_argument("--expl_frame", type=int, default=1000000, help="number of random action before using the best action")
-    parser.add_argument("--replay_start_size", type=int, default=50000, help="starts using the replay memory when the storage has minimum x replays")
-    parser.add_argument("--noop", type=int, default=30, help="number of noops that can be performed ")
+    parser.add_argument("--episodes", type=int, help="Number of episodes")
+    parser.add_argument("--batch", type=int, default=32, help="Minibatch size")
+    parser.add_argument("--replay", type=int, default=1000000, help="Replay memory size")
+    parser.add_argument("--update_freq", type=int, default=10000, help="Frequency to update the target network")
+    parser.add_argument("--discount", type=float, default=0.99, help="Discount factor for future rewards")
+    parser.add_argument("--learning_rate", type=float, default=0.001, help="Learning rate")
+    parser.add_argument("--expl_frame", type=int, default=1000000, help="Number of frames to perform exploration")
+    parser.add_argument("--final_expl", type=float, default=0.1, help="Final exploration rate")
+    parser.add_argument("--replay_start_size", type=int, default=50000, help="Minimum number of replay memories before training starts")
+    parser.add_argument("--noop", type=int, default=30, help="Number of no-ops to perform")
 
     args = parser.parse_args()
 
     training = Training(args=args)
-    #Maryem 
     training.start_training()
-
-
 #example use 
- # python training.py --env 'CartPole-v1' --episodes 20 --batch 32 --replay 100000 --update_freq 10000 --discount 0.99 --learning_rate 0.001 --final_expl 0.1 --expl_frame 1000000 --replay_start_size 50000 --noop 30     
 
+#python training.py --env CartPole-v0 --episodes 5000 --learning_rate 0.0005 --update_freq 5000 --expl_frame 50000 --final_expl 0.05

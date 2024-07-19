@@ -3,6 +3,7 @@ import gymnasium as gym
 import numpy as np
 from PIL import Image
 from gymnasium import spaces
+import Minesweeper
 
 
 class Wrapper():
@@ -31,6 +32,7 @@ class Wrapper():
         def __init__(self, env):
             """:param env: environment where the reward should be clipped"""
             super().__init__(env)
+            self.observation_space = spaces.Box(0, 255, shape=(84, 84, 1), dtype=np.uint8)
 
         def observation(self, obs):
             """
@@ -38,6 +40,8 @@ class Wrapper():
             :return: grayscale "image" as an array
             """
             print("in obs")
+            if isinstance(obs, dict):
+                print(obs)
             if len(obs.shape) == 3 and obs.shape[2] == 3:
                 # Konvertieren des Bildes in Graustufen
                 obs = cv2.cvtColor(obs.astype('uint8'), cv2.COLOR_RGB2GRAY)
@@ -65,23 +69,25 @@ class Wrapper():
         """
         return self.env
 
-
-envi = gym.make("Hopper-v4")
+print(gym.envs.registry.keys())
+envi = gym.make(id="Minesweeper-pixels-v0.1", render_mode="rgb_array", kwargs="pixels")
 
 def testPreProcessing():
     """
     testPreProcessing tests the @Wrapper.PreProcessing
     """
-    process = Wrapper.Preprocessing(envi)
+    process = Wrapper(envi)
+    i, m = process.env.reset()
+    i = np.array(i.frames)
+    img_array = Image.fromarray(i)
+    img_array.show()
+
     pic = (np.random.randn(400,400,3)* 255).astype('uint8')
     img_array = Image.fromarray(pic.astype('uint8')).convert('RGBA')
     img_array.show()
     img_new = process.observation(pic)
     img_new = Image.fromarray(img_new.astype('uint8'))
     img_new.show()
-
-    process.reset()
-    process.step(process.action_space.sample())
 
 def testRewardClipping():
     """

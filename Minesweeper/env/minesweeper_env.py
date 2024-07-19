@@ -8,6 +8,8 @@ import gymnasium as gym
 from gymnasium import spaces
 from PIL import Image
 
+from gymnasium.wrappers import FrameStack
+
 
 class MinesweeperEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 24}
@@ -45,7 +47,10 @@ class MinesweeperEnv(gym.Env):
         self.game_option = self.GameOptions()
         self.window_size = self.game_option.screen_size
         self.size = self.game_option.amount_of_cells_width
-        self.obs_type = obs_type
+        if render_mode == "rgb_array":
+            self.obs_type = "pixels"
+        else:
+            self.obs_type = "features"
         self.window = None
         self.clock = None
         # observation space for obs_type == features
@@ -87,8 +92,10 @@ class MinesweeperEnv(gym.Env):
     # return the observation spaces
     def _get_obs(self):
         if self.obs_type == "features":
+            print("in features")
             return {"agent": self._agent_location, "cells": self.observation_cells, }#"mines": [self.game_option.amount_of_mines]}
         if self.obs_type == "pixels":
+            print("in pixels")
             eightyfour = pygame.transform.scale(self.canvas, (84, 84))
             eightyfour = pygame.transform.flip(eightyfour, True, False)
             eightyfour = pygame.transform.rotate(eightyfour, 90)
@@ -96,7 +103,8 @@ class MinesweeperEnv(gym.Env):
             #img_array = Image.fromarray(pic.astype('uint8')).convert('RGBA')
             #img_array.show()
             #pygame.image.save(eightyfour)
-            return np.array(pygame.surfarray.pixels3d(eightyfour))
+            a = np.array(pygame.surfarray.pixels3d(eightyfour))
+            return a
 
     # @_conf_observation inits the observation for obs_type features.
     # observation_cells is an array a that contains arrays b with length 3.
@@ -502,9 +510,12 @@ while count_frames < 20000:
     if x[2]:
         env.reset()
 end_time = time.time()
-needed_time_1 = end_time-start_time
+
+needed_time_1 = 0
 
 env = MinesweeperEnv(render_mode="human", obs_type="pixels")
+env = FrameStack(env, 4)
+
 env.reset()
 env.render()
 count_frames = 0
@@ -518,4 +529,5 @@ while count_frames < 20000:
 end_time = time.time()
 needed_time = end_time-start_time
 print("FPS features: " + str(20000/needed_time_1)+", Steps: 20000, Needed Time: "+ str(needed_time_1)+", grid: 8x8")
-print("FPS pixels: " + str(20000/needed_time)+", Steps: 20000, Needed Time: "+ str(needed_time)+", grid: 8x8")"""
+print("FPS pixels: " + str(20000/needed_time)+", Steps: 20000, Needed Time: "+ str(needed_time)+", grid: 8x8")
+"""

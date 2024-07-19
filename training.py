@@ -27,19 +27,20 @@ class ReplayMemory():
         Has to be [state, action, reward, state, done], if not => no save of experience
         :param exp: experience that has to be saved
         """
-        # jonas: if exp.__len__() == 5:
-        # jonas: if len(self.memory) != self.args.replay:
-        # jonas:     self.memory.append(exp)
-        # jonas: else:
-        # jonas:     self.memory.popleft()
-        # jonas:     self.memory.append(exp)
-        # jonas: else:
-        # jonas:     print("too much or too low elements in experience")
+        if exp.__len__() == 5:
+            if len(self.memory) != self.args.replay:
+                self.memory.append(exp)
+            else:
+                self.memory.popleft()
+                self.memory.append(exp)
+        else:
+             print("too much or too low elements in experience")
         # Maryem:
+        """
         if len(exp) == 5:
             self.memory.append(exp)
         else:
-            print("Too many or too few elements in experience")
+            print("Too many or too few elements in experience")"""
 
     def get_exp(self):
         """
@@ -80,44 +81,58 @@ class Training:
         # jonas :self.opti = optim.Adam(self.q_network.parameters())
         self.opti = optim.Adam(self.q_network.parameters(), lr=self.args.learning_rate) #Maryem
         self.calc_loss = nn.MSELoss()
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+        else:
+            device = torch.device("cpu")
+        print(f'Using device: {device}')
         self.steps_done = 0
+
 
     def set_weights(self):
         self.t_network.load_state_dict(self.q_network.state_dict())
 
-class Training:
-    def __init__(self, args):
-        self.args = args
-        self.replay_memory = ReplayMemory(args)
-        self.env = gym.make(args.env)
-        self.input_dim = self.env.observation_space.shape[0]
-        self.output_dim = self.env.action_space.n
-        self.q_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim)
-        self.t_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim)
-        self.set_weights()
-        self.opti = optim.Adam(self.q_network.parameters(), lr=self.args.learning_rate)
-        self.calc_loss = nn.MSELoss()
-        self.steps_done = 0
-
-    def set_weights(self):
-        self.t_network.load_state_dict(self.q_network.state_dict())
 
     def start_training(self):
+        """
+        training methods written the same as in the pseudocode
+        """
+        exploration = 0
+        # to count the number of explorations, after reaching the limit, we use eps.-greedy
+        update_counter = 0
+        # to count the number of steps we have to take before update q_network to t_network
+        losses = []
+        # to save the losses we calculated, after every use for loss_curve its empty
+        self.envsteps = 0
+        # to count the environment steps we did not in a episode, in a whole training process
+        used_minibatches = 0
+        # to count the used minibatches to aggregate over loss to calc loss_curve
+        self.loss_curve = []
+        # contains the mean of every 25th minibatch
+
+        evaluation_steps = 100  # Evaluate every 100 steps #Maryem
+
         for episode in range(self.args.episodes):
             state, _ = self.env.reset()
             total_reward = 0
-            
+            # at every start (reset) the start sequence is equal to the next state sequence.
+            # there is no pre preimage
+
             start_time = datetime.datetime.now()
+            # episodes can run for x steps or y time
 
             for t in range(1000):
                 if datetime.datetime.now() - start_time >= datetime.timedelta(seconds=360):
                     break
+                # before going into a new step, we proof if time limit is reached for that episode.
 
                 self.steps_done += 1
                 exploration_rate = self.args.final_expl + (1 - self.args.final_expl) * np.exp(-1. * self.steps_done / self.args.expl_frame)
 
                 if np.random.random() < exploration_rate:
                     action = self.env.action_space.sample()
+                # choose the action random if eps.-greedy or still in exploration phase
+
                 else:
                     state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
                     with torch.no_grad():
@@ -140,7 +155,7 @@ class Training:
 
                     if self.steps_done % self.args.update_freq == 0:
                         self.set_weights()
-                    print(f"Episode: {episode}, Step: {t}, Loss: {loss.item()}")    
+                    print(f"Episode: {episode}, Step: {t}, Loss: {loss.item()}")
 
                     if done:
                         break
@@ -151,8 +166,8 @@ class Training:
                 print("Evaluating the model...")
                 filename = f"final_model_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
                 torch.save(self.q_network.state_dict(), filename)
-                evaluate_trained_model(self.args.env, filename, num_episodes=10) 
-        
+                evaluate_trained_model(self.args.env, filename, num_episodes=10)
+
         print("Training completed.")
 
     def set_target_value(self, minibatches):
@@ -226,7 +241,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     training = Training(args=args)
+    #Maryem 
     training.start_training()
-#example use 
+#example use
 
 #python training.py --env CartPole-v0 --episodes 5000 --learning_rate 0.0005 --update_freq 5000 --expl_frame 50000 --final_expl 0.05

@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 from gymnasium import spaces
 import Minesweeper
-
+import gymnasium.wrappers.frame_stack as fs
 
 class Wrapper():
     """class wrapper contains the conversion of pixel observation to new parameters"""
@@ -46,14 +46,14 @@ class Wrapper():
                 # Konvertieren des Bildes in Graustufen
                 obs = cv2.cvtColor(obs.astype('uint8'), cv2.COLOR_RGB2GRAY)
                 # Ändern der Größe des Bildes
-                obs = cv2.resize(obs, (84, 110))
+                #obs = cv2.resize(obs, (84, 110))
                 # Zuschneiden des Bildes
-                obs = obs[13:97, :]
+                #obs = obs[13:97, :]
                 # Konvertieren in uint8, falls notwendig
                 if obs.dtype != np.uint8:
                     obs = (obs * 255).astype('uint8')
-                return obs
-            return obs
+                return np.array(obs)
+            return np.array(obs)
 
 
     def __init__(self, envi: gym.Env):
@@ -61,6 +61,7 @@ class Wrapper():
         self.env = self.RewardClipper(envi)
         self.env = self.Preprocessing(self.env)
         self.env = gym.wrappers.FrameStack(self.env, 4)
+        print("end of Wrapper")
 
     def get_env(self):
         """
@@ -70,24 +71,22 @@ class Wrapper():
         return self.env
 
 print(gym.envs.registry.keys())
-envi = gym.make(id="Minesweeper-pixels-v0.1", render_mode="rgb_array", kwargs="pixels")
+envi = gym.make(id="Minesweeper-pixels-v0.1", render_mode="rgb_array")
 
 def testPreProcessing():
     """
     testPreProcessing tests the @Wrapper.PreProcessing
     """
     process = Wrapper(envi)
-    i, m = process.env.reset()
-    i = np.array(i.frames)
-    img_array = Image.fromarray(i)
-    img_array.show()
-
-    pic = (np.random.randn(400,400,3)* 255).astype('uint8')
-    img_array = Image.fromarray(pic.astype('uint8')).convert('RGBA')
-    img_array.show()
-    img_new = process.observation(pic)
-    img_new = Image.fromarray(img_new.astype('uint8'))
-    img_new.show()
+    env = process.env
+    i, m = env.reset()
+    for i in range(5):
+        i, m, d, e, d = env.step(env.action_space.sample())
+        if isinstance(i, fs.LazyFrames):
+            i = np.array(i)
+        print(f"Lazyframes: {isinstance(i, fs.LazyFrames)}")
+        img_array = Image.fromarray(i[3])
+        img_array.show()
 
 def testRewardClipping():
     """

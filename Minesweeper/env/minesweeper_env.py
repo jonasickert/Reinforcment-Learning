@@ -544,7 +544,7 @@ while count_frames < 20000:
     if x[2]:
         env.reset()
 end_time = time.time()
-"""
+
 needed_time_1 = 0
 
 env = MinesweeperEnv(render_mode="rgb_array", obs_type="pixels")
@@ -563,4 +563,4 @@ while count_frames < 20000:
 end_time = time.time()
 needed_time = end_time-start_time
 print("FPS features: " + str(20000/needed_time_1)+", Steps: 20000, Needed Time: "+ str(needed_time_1)+", grid: 8x8")
-print("FPS pixels: " + str(20000/needed_time)+", Steps: 20000, Needed Time: "+ str(needed_time)+", grid: 8x8")
+print("FPS pixels: " + str(20000/needed_time)+", Steps: 20000, Needed Time: "+ str(needed_time)+", grid: 8x8")"""

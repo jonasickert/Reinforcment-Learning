@@ -47,10 +47,11 @@ class MinesweeperEnv(gym.Env):
         self.game_option = self.GameOptions()
         self.window_size = self.game_option.screen_size
         self.size = self.game_option.amount_of_cells_width
-        if render_mode == "rgb_array":
-            self.obs_type = "pixels"
-        else:
-            self.obs_type = "features"
+        #if render_mode == "rgb_array":
+        #    self.obs_type = "pixels"
+        #else:
+        #    self.obs_type = "features"
+        self.obs_type = obs_type
         self.window = None
         self.clock = None
         # observation space for obs_type == features
@@ -104,6 +105,7 @@ class MinesweeperEnv(gym.Env):
             #img_array.show()
             #pygame.image.save(eightyfour)
             a = np.array(pygame.surfarray.pixels3d(eightyfour))
+            print(a)
             return a
 
     # @_conf_observation inits the observation for obs_type features.
@@ -130,16 +132,19 @@ class MinesweeperEnv(gym.Env):
     # when obs_type is pixels, we still calculate the observation space for features but do not return them.
     # when obs_type is pixels, we return the return of @_render_frames
     def reset(self, **kwargs):
-
         self.game_option.counter = 0
         super().reset()
         self._conf_observation()
         self.window = None
-        self._render_frame()
-        observation = self._get_obs()
-        if self.obs_type == "pixels":
+        if self.obs_type is "pixels":
+            self.create_canvas()
+        if self.render_mode == "human":
             self._render_frame()
-            observation = self._get_obs()
+        #self._render_frame()
+        observation = self._get_obs()
+        #if self.obs_type == "pixels":
+        #    self._render_frame()
+        #    observation = self._get_obs()
         return observation, {}
 
     # this Cell only exists for creating the minesweeper grid
@@ -441,11 +446,19 @@ class MinesweeperEnv(gym.Env):
             else:
                 reward = -0.2
             self._agent_location = new_location
+
+            if self.obs_type is "pixels":
+                self.create_canvas()
+
             observation = self._get_obs()
+
             if self.obs_type == "pixels":
                 self._render_frame()
                 observation = self._get_obs()
-            if self.render_mode == ("human"):
+                # self.create_canvas()
+
+            if self.render_mode == "human":
+                print("in step in human calling _render_frame")
                 self._render_frame()
             #print("uncovered sprites" + str(self.game_option.uncovered_sprites))
             #print(self.game_option.grid_size)
@@ -456,12 +469,31 @@ class MinesweeperEnv(gym.Env):
     def render(self):
         return self._render_frame()
 
+
     # @_render_frame updates the pygame window.
     # at first call; game is created, till here a window does not exist.
     # creates a canvas, puts all sprites from a list into that canvas.
     # why canvas? it's resizable for the pixel space.
     # if obs_type pixels the rendert image from _render_frame is the observation for the AI
     # image has to be scaled to 84x84
+
+    def create_canvas(self):
+        print("in create canvas")
+        self.canvas = None
+        self.canvas = pygame.Surface((self.window_size, self.window_size))
+        # self.canvas.fill((0, 0, 0))
+        self.game_option.sprites_list.update()
+        self.game_option.sprites_list.draw(self.canvas)
+        pos_on_canvas = (
+            (self._agent_location[0] * (
+                        self.game_option.amount_of_cells_width - 1)) * self.game_option.cell_length + self.game_option.cell_length / 2,
+            self._agent_location[1] * (
+                        self.game_option.amount_of_cells_width - 1) * self.game_option.cell_length + self.game_option.cell_length / 2)
+        pygame.draw.circle(self.canvas, (205, 38, 38), center=pos_on_canvas,
+                           radius=self.game_option.cell_length / 2, width=8)
+        return np.transpose(np.array(pygame.surfarray.pixels3d(self.canvas)), axes=(1, 0, 2))
+
+
     def _render_frame(self):
         if self.window is None:
             self.start_game((-1, -1))
@@ -471,6 +503,7 @@ class MinesweeperEnv(gym.Env):
             self.clock = pygame.time.Clock()
         if self.action:
             self.action = False
+            """
             self.canvas = None
             self.canvas = pygame.Surface((self.window_size, self.window_size))
             #self.canvas.fill((0, 0, 0))
@@ -481,17 +514,18 @@ class MinesweeperEnv(gym.Env):
             self._agent_location[1] * (self.game_option.amount_of_cells_width-1) * self.game_option.cell_length + self.game_option.cell_length / 2)
             pygame.draw.circle(self.canvas, (205, 38, 38), center=pos_on_canvas,
                                radius=self.game_option.cell_length / 2, width=8)
+            """
+            self.create_canvas()
             self.window.blit(self.canvas, self.canvas.get_rect())
             pygame.display.flip()
         self.clock.tick(24)
 
-
-
+        """
         if self.render_mode == "rgb_array":
             # factor = 84 / self.game_option.screen_size
             # eightyfour = pygame.transform.scale_by(canvas, factor)
             return np.transpose(np.array(pygame.surfarray.pixels3d(self.canvas)), axes=(1, 0, 2))
-
+        """
     # @close closes the game, not the environment
     def close(self):
         pygame.quit()
@@ -510,14 +544,14 @@ while count_frames < 20000:
     if x[2]:
         env.reset()
 end_time = time.time()
-
+"""
 needed_time_1 = 0
 
-env = MinesweeperEnv(render_mode="human", obs_type="pixels")
-env = FrameStack(env, 4)
+env = MinesweeperEnv(render_mode="rgb_array", obs_type="pixels")
+#env = FrameStack(env, 4)
 
 env.reset()
-env.render()
+#env.render()
 count_frames = 0
 start_time = time.time()
 while count_frames < 20000:
@@ -530,4 +564,3 @@ end_time = time.time()
 needed_time = end_time-start_time
 print("FPS features: " + str(20000/needed_time_1)+", Steps: 20000, Needed Time: "+ str(needed_time_1)+", grid: 8x8")
 print("FPS pixels: " + str(20000/needed_time)+", Steps: 20000, Needed Time: "+ str(needed_time)+", grid: 8x8")
-"""

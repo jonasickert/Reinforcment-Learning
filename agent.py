@@ -1,12 +1,13 @@
 import networks
 import gymnasium as gym
 import torch
+import io
 
 class DQNAgent():
 
     #code von Jonas
     #Korrektur von Maryem: removed len and .shape to test on CartPole-v1
-    def __init__(self, env:gym.Env, input_dim, **kwargs):
+    def __init__(self, env:gym.Env, input_dim, filepath):
         """
         Initializes the DQNAgent with the given environment and input dimension.
         Parameters:
@@ -15,8 +16,8 @@ class DQNAgent():
         """
         # initialisiere Netzwerk
         self.dqn = networks.QFunction(input_dim=input_dim, output_dim=env.action_space.n)
-        if kwargs:
-            self.load_network(kwargs)
+        if filepath is not None:
+            self.load_network(filepath)
 
     #code von Maryem:
     def select_action(self, state):
@@ -81,7 +82,13 @@ class DQNAgent():
         torch.save(self.dqn.state_dict(), file_path)
 
     def load_network(self, file_path):
-        self.dqn.load_state_dict(torch.load(file_path))
+        if isinstance(file_path, dict):
+            buffer = io.BytesIO()
+            torch.save(file_path, buffer)
+            buffer.seek(0)
+            self.dqn.load_state_dict(torch.load(buffer))
+        else:
+            self.dqn.load_state_dict(torch.load(file_path))
 
 """
 Extend your agent class with functionality for training the networks. 

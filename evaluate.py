@@ -11,7 +11,7 @@ wandb.require("core")
 
 #*****extend_auf4b*****
 #added agent_type
-def evaluate_agent(env_name, agent_type='random', num_episodes=10, log_wandb= False):
+def evaluate_agent(env_name, agent_type, num_episodes, log_wandb, path):
     """
     Evaluate a random agent in a Gym environment over 10 episodes.
 
@@ -35,7 +35,7 @@ def evaluate_agent(env_name, agent_type='random', num_episodes=10, log_wandb= Fa
         agent = random_agent(env.action_space)
     elif agent_type == 'dqn':
         input_dim = env.observation_space.shape[0]
-        agent = DQNAgent(env, input_dim)
+        agent = DQNAgent(env, input_dim, path)
     else:
         raise ValueError(f"Unsupported agent type: {agent_type}")
     #**********************
@@ -60,6 +60,7 @@ def evaluate_agent(env_name, agent_type='random', num_episodes=10, log_wandb= Fa
         
         #logs reward for average
         if log_wandb:
+            print("waiting for logging")
             wandb.log({f"reward_episode_{episode + 1}": episode_reward})
 
     # Calculate the average reward over all episodes
@@ -77,6 +78,7 @@ def evaluate_trained_model(env_name, model_path, num_episodes=10):
     env = gym.make(env_name)
     input_dim = env.observation_space.shape[0]
     agent = DQNAgent(env, input_dim)
+    print(model_path)
     agent.load_network(model_path)  # Load the trained model weights
 
     total_rewards = []
@@ -113,16 +115,18 @@ if __name__ == "__main__":
 
     # Define the argument for the number of episodes
     parser.add_argument("--episodes", type=int, default=10, help="The number of episodes to run.")
+    parser.add_argument("--path", type=str)
+
     # Parse the command-line arguments
     
     parser.add_argument("--log_wandb", action="store_true", help="Log results to Weights & Biases.")
-    
+
     
     args = parser.parse_args()
 
     #*****extend_auf4b*****
     #added agent_type
-    evaluate_agent(args.env, args.agent, args.episodes, args.log_wandb)
+    evaluate_agent(args.env, args.agent, args.episodes, args.log_wandb, args.path)
 
     """
     Example usage in the terminal:
@@ -142,4 +146,6 @@ if __name__ == "__main__":
     #the new commands 
     python evaluate.py --env CartPole-v1 --agent random  --episodes 10
     python evaluate.py --env CartPole-v1 --agent dqn  --episodes 10
+    
+    python evaluate.py --env CartPole-v1 --agent dqn --episodes 10 --log_wandb --path yourpath
     """

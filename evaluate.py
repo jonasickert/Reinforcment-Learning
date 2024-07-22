@@ -77,7 +77,7 @@ def evaluate_agent(env_name, agent_type, num_episodes, log_wandb, path):
 def evaluate_trained_model(env_name, model_path, num_episodes=10):
     env = gym.make(env_name)
     input_dim = env.observation_space.shape[0]
-    agent = DQNAgent(env, input_dim)
+    agent = DQNAgent(env, input_dim, None)
     print(model_path)
     agent.load_network(model_path)  # Load the trained model weights
 

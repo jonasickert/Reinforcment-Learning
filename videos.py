@@ -15,7 +15,7 @@ wandb.require("core")
 
 #*****Extend_Auf4)b*****
 # Added agent_type
-def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_array', agent_type='random', log_wandb=False):
+def create_video(env_name, agent, output_dir, steps_done, num_episodes=1, render_mode='rgb_array', agent_type='random', log_wandb=False):
     """ 
     Creates a video of an agent's performance in a Gym environment.
 
@@ -59,7 +59,7 @@ def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_a
 
         if render_mode == 'rgb_array':
             # Create video file using MoviePy ('pip install MoviePy' -if needed)
-            video_path = os.path.join(output_dir, f"{env_name}_episode_{episode + 1}.mp4")
+            video_path = os.path.join(output_dir, f"{env_name}_episode_{steps_done}.mp4")
             print(f"Saving video to {video_path}")
             #clip = mpy.ImageSequenceClip(frames, fps=env.metadata.get('render_fps', 30))
             #clip.write_videofile(video_path, codec='libx264')
@@ -78,7 +78,7 @@ def create_video(env_name, agent, output_dir, num_episodes=1, render_mode='rgb_a
             if log_wandb:
                 if os.path.exists(video_path):
                     print(f"Logging video to wandb: {video_path}")
-                    wandb.log({f"video_{episode + 1}": wandb.Video(video_path)})
+                    wandb.log({f"video_{steps_done}": wandb.Video(video_path)})
                 else:
                     print(f"Failed to save video: {video_path}")
 

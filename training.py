@@ -10,7 +10,9 @@ import torch.optim as optim
 import networks
 from agent import DQNAgent #Maryem
 from evaluate import evaluate_trained_model #Maryem
-
+from videos import create_video
+import wandb
+import os
 
 class ReplayMemory():
     """Replay Memory, storage of experiences"""
@@ -81,13 +83,14 @@ class Training:
         # jonas :self.opti = optim.Adam(self.q_network.parameters())
         self.opti = optim.Adam(self.q_network.parameters(), lr=self.args.learning_rate) #Maryem
         self.calc_loss = nn.MSELoss()
+        self.batches_count = 0
         if torch.cuda.is_available():
             device = torch.device("cuda")
         else:
             device = torch.device("cpu")
         print(f'Using device: {device}')
         self.steps_done = 0
-
+        wandb.init(project="dqn_training", config=args)
 
     def set_weights(self):
         self.t_network.load_state_dict(self.q_network.state_dict())
@@ -97,36 +100,27 @@ class Training:
         """
         training methods written the same as in the pseudocode
         """
-        exploration = 0
-        # to count the number of explorations, after reaching the limit, we use eps.-greedy
-        update_counter = 0
-        # to count the number of steps we have to take before update q_network to t_network
-        losses = []
-        # to save the losses we calculated, after every use for loss_curve its empty
-        self.envsteps = 0
-        # to count the environment steps we did not in a episode, in a whole training process
-        used_minibatches = 0
-        # to count the used minibatches to aggregate over loss to calc loss_curve
-        self.loss_curve = []
-        # contains the mean of every 25th minibatch
-
-        evaluation_steps = 100  # Evaluate every 100 steps #Maryem
-
-        for episode in range(self.args.episodes):
+        
+        total_timesteps = 250000
+        evaluation_interval = 100000
+        next_evaluation = evaluation_interval
+        
+        while self.steps_done < total_timesteps:
             state, _ = self.env.reset()
             total_reward = 0
             # at every start (reset) the start sequence is equal to the next state sequence.
             # there is no pre preimage
 
             start_time = datetime.datetime.now()
+            episode_steps = 0
             # episodes can run for x steps or y time
-
-            for t in range(1000):
-                if datetime.datetime.now() - start_time >= datetime.timedelta(seconds=360):
-                    break
+            while episode_steps < 1000:  # Environment steps within one episode
+                # if datetime.datetime.now() - start_time >= datetime.timedelta(seconds=360):
+                #     break
                 # before going into a new step, we proof if time limit is reached for that episode.
 
                 self.steps_done += 1
+                episode_steps += 1 
                 exploration_rate = self.args.final_expl + (1 - self.args.final_expl) * np.exp(-1. * self.steps_done / self.args.expl_frame)
 
                 if np.random.random() < exploration_rate:
@@ -147,6 +141,7 @@ class Training:
 
                 minibatches = self.replay_memory.get_exp()
                 if minibatches:
+                    self.batches_count += 1
                     target_action_values = self.set_target_value(minibatches)
                     loss = self.calculate_loss(target_action_values, minibatches)
                     self.opti.zero_grad()
@@ -155,18 +150,28 @@ class Training:
 
                     if self.steps_done % self.args.update_freq == 0:
                         self.set_weights()
-                    print(f"Episode: {episode}, Step: {t}, Loss: {loss.item()}")
+                    
+                    # Print the current episode, environment step, reward, and loss function
+                    print(f"Step: {self.steps_done}, Episode Step: {episode_steps}, Reward: {reward}, Loss: {loss.item()}")
 
-                    if done:
-                        break
+                    if self.batches_count % 25 == 0:
+                        wandb.log({"loss_every_25_batches": loss.item(), "steps_done": self.steps_done})
 
-            print(f"Episode: {episode}, Total Reward: {total_reward}")
+                if done:
+                    break
 
-            if (episode + 1) % 100 == 0:  # Evaluate every 10 episodes
+            print(f"Total Reward: {total_reward}, Episode Steps: {episode_steps}")
+            wandb.log({"total_reward": total_reward, "steps_done": self.steps_done})
+
+            # Check if it's time to evaluate the model
+            if self.steps_done >= next_evaluation:
                 print("Evaluating the model...")
-                filename = f"final_model_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pth"
+                filename = f"model_{self.steps_done}.pth"
                 torch.save(self.q_network.state_dict(), filename)
-                evaluate_trained_model(self.args.env, filename, num_episodes=10)
+                mean_reward = evaluate_trained_model(self.args.env, filename, num_episodes=10)
+                wandb.log({"mean_reward": mean_reward, "steps_done": self.steps_done})
+                self.log_evaluation(self.args.env, filename, self.steps_done)
+                next_evaluation += evaluation_interval
 
         print("Training completed.")
 
@@ -220,14 +225,22 @@ class Training:
         action_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squeeze(1)
 
         loss = self.calc_loss(action_values, target_action_values)
+        wandb.log({"loss": loss.item(), "steps_done": self.steps_done})
         return loss
 
+    def log_evaluation(self, env_name, model_path, steps_done):
+        output_dir = "./videos"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
+        agent = DQNAgent(self.env, self.input_dim, None)
+        agent.load_network(model_path)
+        create_video(env_name, agent, output_dir,steps_done=steps_done,num_episodes=1, render_mode='rgb_array', agent_type='dqn', log_wandb=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a DQN agent.")
     parser.add_argument("--env", type=str, help="The environment to learn")
-    parser.add_argument("--episodes", type=int, help="Number of episodes")
+    parser.add_argument("--episodes", type=int, default=10, help="Number of episodes")
     parser.add_argument("--batch", type=int, default=32, help="Minibatch size")
     parser.add_argument("--replay", type=int, default=1000000, help="Replay memory size")
     parser.add_argument("--update_freq", type=int, default=10000, help="Frequency to update the target network")
@@ -245,4 +258,4 @@ if __name__ == "__main__":
     training.start_training()
 #example use
 
-#python training.py --env CartPole-v0 --episodes 5000 --learning_rate 0.0005 --update_freq 5000 --expl_frame 50000 --final_expl 0.05
+#python training.py --env CartPole-v1 --episodes 10 --learning_rate 0.0005 --update_freq 5000 --expl_frame 50000 --final_expl 0.05

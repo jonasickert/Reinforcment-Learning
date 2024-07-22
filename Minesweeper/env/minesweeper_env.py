@@ -93,10 +93,10 @@ class MinesweeperEnv(gym.Env):
     # return the observation spaces
     def _get_obs(self):
         if self.obs_type == "features":
-            print("in features")
+            #print("in features")
             return {"agent": self._agent_location, "cells": self.observation_cells, }#"mines": [self.game_option.amount_of_mines]}
         if self.obs_type == "pixels":
-            print("in pixels")
+            #print("in pixels")
             eightyfour = pygame.transform.scale(self.canvas, (84, 84))
             eightyfour = pygame.transform.flip(eightyfour, True, False)
             eightyfour = pygame.transform.rotate(eightyfour, 90)
@@ -105,7 +105,7 @@ class MinesweeperEnv(gym.Env):
             #img_array.show()
             #pygame.image.save(eightyfour)
             a = np.array(pygame.surfarray.pixels3d(eightyfour))
-            print(a)
+            #print(a)
             return a
 
     # @_conf_observation inits the observation for obs_type features.
@@ -394,10 +394,10 @@ class MinesweeperEnv(gym.Env):
     def step(self, action):
         self.game_option.counter += 1
         move = self._action_space[action]
-        print(move)
+        #print(move)
         # noop return
         if move[0]==-1 and move[1]==-1: #not in self._action_space:
-            print("in move 5")
+            #print("in move 5")
             self.change_image = 0
             self.action = False
             return self._get_obs(), float(0), False, False, {},
@@ -416,7 +416,7 @@ class MinesweeperEnv(gym.Env):
                 # this will be called before uncover cells and update observation_space
                 # call
                 self.first_uncover_at_random = False
-            reward: float = -0.2
+            reward: float = -0.02
             terminated = False
             if (new_location[0] == self._agent_location[0] and new_location[1] == self._agent_location[1] and
                 move is  self._action_space[4] and self.first_uncover_at_random == False):
@@ -444,7 +444,7 @@ class MinesweeperEnv(gym.Env):
                             if cell[0] == self._agent_location[0] and cell[1] == self._agent_location[1]:
                                 cell[2] = sprite.mines / 8
             else:
-                reward = -0.2
+                reward = -0.02
             self._agent_location = new_location
 
             if self.obs_type is "pixels":
@@ -458,7 +458,7 @@ class MinesweeperEnv(gym.Env):
                 # self.create_canvas()
 
             if self.render_mode == "human":
-                print("in step in human calling _render_frame")
+                #print("in step in human calling _render_frame")
                 self._render_frame()
             #print("uncovered sprites" + str(self.game_option.uncovered_sprites))
             #print(self.game_option.grid_size)
@@ -478,7 +478,7 @@ class MinesweeperEnv(gym.Env):
     # image has to be scaled to 84x84
 
     def create_canvas(self):
-        print("in create canvas")
+        #print("in create canvas")
         self.canvas = None
         self.canvas = pygame.Surface((self.window_size, self.window_size))
         # self.canvas.fill((0, 0, 0))

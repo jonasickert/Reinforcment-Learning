@@ -15,4 +15,5 @@ register(
      kwargs = { "obs_type":"pixels"}
 )
 
+
 print("Environment registered!")

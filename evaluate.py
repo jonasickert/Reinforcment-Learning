@@ -5,6 +5,7 @@ from random_agent import random_agent
 #*****extend_auf4b*****
 from agent import DQNAgent #Import the DQN agent 
 import wandb
+import torch
 
 #enables the WB backend
 wandb.require("core")
@@ -75,11 +76,26 @@ def evaluate_agent(env_name, agent_type, num_episodes, log_wandb, path):
 
 
 def evaluate_trained_model(env_name, model_path, num_episodes=10):
-    env = gym.make(env_name)
-    input_dim = env.observation_space.shape[0]
+    print("in evaluate_trained_model")
+    if env_name == 'Minesweeper-features-v0.1':
+        render_mode = "rgb_array"
+        obs_type = "features"
+        env: gym.Env = gym.make(env_name, render_mode=render_mode)
+        if obs_type == "features":
+            agent_shape = env.observation_space["agent"].shape
+            cells_shape = env.observation_space["cells"].shape
+            input_dim = agent_shape[0] + cells_shape[0] * cells_shape[1]
+        else:
+            input_dim = env.observation_space.shape[0]  # Maryem
+    else:
+        env: gym.Env = gym.make(args.env)  # Maryem
+        input_dim = env.observation_space.shape[0]  # Maryem
+    print("configured env, input_dum und output_dim")
+    output_dim = env.action_space.n  # Maryem
     agent = DQNAgent(env, input_dim, None)
     print(model_path)
     agent.load_network(model_path)  # Load the trained model weights
+    print("model loaded into agent")
 
     total_rewards = []
 
@@ -87,12 +103,21 @@ def evaluate_trained_model(env_name, model_path, num_episodes=10):
         state, _ = env.reset()
         done = False
         episode_reward = 0
+        action_counter = 0
+        old_action = None
 
         while not done:
+            if env_name == 'Minesweeper-features-v0.1':
+                agent_data = state['agent']
+                cells_data = state['cells'].flatten()  # Flache das cells-Array ab
+                states = np.concatenate([agent_data, cells_data])
+                state = np.array(states, dtype=np.float32)  # Konvertiere in numpy Array
             action = agent.select_action(state)  # Select action using the trained DQN agent
+            print(action)
             next_state, reward, done, _, _ = env.step(action)
             episode_reward += reward
             state = next_state
+        print("done")
 
         total_rewards.append(episode_reward)
         print(f"Episode {episode + 1}: Total reward: {episode_reward}")

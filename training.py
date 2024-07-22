@@ -10,6 +10,8 @@ import torch.optim as optim
 import networks
 from agent import DQNAgent #Maryem
 from evaluate import evaluate_trained_model #Maryem
+import Minesweeper
+
 from videos import create_video
 import wandb
 import os
@@ -70,8 +72,19 @@ class Training:
         self.args = args
         self.replay_memory = ReplayMemory(args)
         # jonas: self.env: gym.Env = args.env
-        self.env: gym.Env = gym.make(args.env) #Maryem
-        self.input_dim = self.env.observation_space.shape[0] #Maryem
+        if self.args.env == 'Minesweeper-features-v0.1':
+            render_mode = "rgb_array"
+            obs_type = "features"
+            self.env: gym.Env = gym.make(args.env, render_mode=render_mode)
+            if obs_type == "features":
+                agent_shape = self.env.observation_space["agent"].shape
+                cells_shape = self.env.observation_space["cells"].shape
+                self.input_dim = agent_shape[0] + cells_shape[0] * cells_shape[1]
+
+        else:
+            self.env: gym.Env = gym.make(args.env) #Maryem
+            self.input_dim = self.env.observation_space.shape[0] #Maryem
+
         self.output_dim = self.env.action_space.n #Maryem
         # jonas: self.q_network = networks.QFunction(input_dim=7056, output_dim=len(self.env.action_space.n))
         # jonas: self.t_network = networks.QFunction(input_dim=7056, output_dim=len(self.env.action_space.n))
@@ -90,7 +103,7 @@ class Training:
             device = torch.device("cpu")
         print(f'Using device: {device}')
         self.steps_done = 0
-        wandb.init(project="dqn_training", config=args)
+        wandb.init(project="dqn_training_minesweeper", config=args)
 
     def set_weights(self):
         self.t_network.load_state_dict(self.q_network.state_dict())
@@ -100,11 +113,11 @@ class Training:
         """
         training methods written the same as in the pseudocode
         """
-        
-        total_timesteps = 250000
-        evaluation_interval = 100000
+
+        total_timesteps = 10000000
+        evaluation_interval = 10000000000000
         next_evaluation = evaluation_interval
-        
+
         while self.steps_done < total_timesteps:
             state, _ = self.env.reset()
             total_reward = 0
@@ -120,7 +133,7 @@ class Training:
                 # before going into a new step, we proof if time limit is reached for that episode.
 
                 self.steps_done += 1
-                episode_steps += 1 
+                episode_steps += 1
                 exploration_rate = self.args.final_expl + (1 - self.args.final_expl) * np.exp(-1. * self.steps_done / self.args.expl_frame)
 
                 if np.random.random() < exploration_rate:
@@ -128,7 +141,14 @@ class Training:
                 # choose the action random if eps.-greedy or still in exploration phase
 
                 else:
-                    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+                    if self.args.env == 'Minesweeper-features-v0.1':
+                        agent = state['agent']
+                        cells = state['cells'].flatten()  # Flatten the cells array
+                        combined = np.concatenate([agent, cells])
+                        tensor = torch.tensor(combined, dtype=torch.float32)
+                        state_tensor = tensor.unsqueeze(0)
+                    else:
+                        state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
                     with torch.no_grad():
                         action = np.argmax(self.q_network(state_tensor).numpy())
 
@@ -150,7 +170,7 @@ class Training:
 
                     if self.steps_done % self.args.update_freq == 0:
                         self.set_weights()
-                    
+
                     # Print the current episode, environment step, reward, and loss function
                     print(f"Step: {self.steps_done}, Episode Step: {episode_steps}, Reward: {reward}, Loss: {loss.item()}")
 
@@ -184,8 +204,18 @@ class Training:
         # jonas: next_states = torch.tensor([nstate[0] for nstate in minibatches], dtype=torch.float64)
         # jonas: dones = torch.tensor([done[0] for done in minibatches], dtype=torch.float64)
         # Maryem:
+        if self.args.env == 'Minesweeper-features-v0.1':
+            next_states = []
+            for nstate in minibatches:
+                agent = nstate[3]['agent']
+                cells = nstate[3]['cells'].flatten()  # Flatten the cells array
+                combined = np.concatenate([agent, cells])
+                next_states.append(combined)
+
+            next_states = torch.tensor(next_states, dtype=torch.float32)
+        else:
+            next_states = torch.tensor([nstate[3] for nstate in minibatches], dtype=torch.float32)
         rewards = torch.tensor([reward[2] for reward in minibatches], dtype=torch.float32)
-        next_states = torch.tensor([nstate[3] for nstate in minibatches], dtype=torch.float32)
         dones = torch.tensor([done[4] for done in minibatches], dtype=torch.float32)
 
         if next_states.shape[0] == 0: #Maryem
@@ -218,8 +248,16 @@ class Training:
         if len(target_action_values) == 0:
             print("No target action values available. Skipping loss computation.")
             return torch.tensor(0.0)
-
-        states = torch.tensor([state[0] for state in minibatches], dtype=torch.float32)
+        if self.args.env == 'Minesweeper-features-v0.1':
+            states = []
+            for state in minibatches:
+                agent = state[0]['agent']
+                cells = state[0]['cells'].flatten()  # Flatten the cells array
+                combined = np.concatenate([agent, cells])
+                states.append(combined)
+            states = torch.tensor(states, dtype=torch.float32)
+        else:
+            states = torch.tensor([state[0] for state in minibatches], dtype=torch.float32)
         actions = torch.tensor([action[1] for action in minibatches], dtype=torch.int64)
         states = states.view(len(states), -1)  # Reshape to (batch_size, input_dim)
         action_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squeeze(1)

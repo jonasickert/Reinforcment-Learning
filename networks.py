@@ -47,7 +47,7 @@ class QFunction(nn.Module):
             self.fc3 = nn.Linear(128, output_dim)
         elif input_type == 'pixels':
             # Convolutional layers for pixels
-            self.conv1 = nn.Conv2d(input_dim[0], 32, kernel_size=8, stride=4)
+            self.conv1 = nn.Conv2d(4, 32, kernel_size=8, stride=4)
             self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
             self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
             self.fc1 = nn.Linear(64 * 7 * 7, 512)  # Assuming input image size is 84x84
@@ -74,7 +74,7 @@ class QFunction(nn.Module):
             x = F.relu(self.conv1(x))
             x = F.relu(self.conv2(x))
             x = F.relu(self.conv3(x))
-            x = x.view(x.size(0), -1)  # Flatten the tensor
+            x = x.reshape(x.size(0), -1)  # Flatten the tensor
             x = F.relu(self.fc1(x))
             x = self.fc2(x)
         return x

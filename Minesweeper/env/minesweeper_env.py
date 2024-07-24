@@ -453,7 +453,7 @@ class MinesweeperEnv(gym.Env):
             observation = self._get_obs()
 
             if self.obs_type == "pixels":
-                self._render_frame()
+                #self._render_frame()
                 observation = self._get_obs()
                 # self.create_canvas()
 
@@ -554,10 +554,11 @@ env.reset()
 #env.render()
 count_frames = 0
 start_time = time.time()
-while count_frames < 20000:
+while count_frames < 20:
     count_frames += 1
     rand = np.random.randint(0,5)
     x = env.step(rand)
+    print(x[1])
     if x[2]:
         env.reset()
 end_time = time.time()

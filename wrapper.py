@@ -21,7 +21,7 @@ class Wrapper():
             :param reward: the reward that should be clipped between -1 and 1
             :return: is reward < -1 it's clipped to -1 (max), if reward > 1 it's clipped to 1 (min)
             """
-            return min(max(-0.01, reward), 0.01)
+            return min(max(-1, reward), 1)
 
     class Preprocessing(gym.ObservationWrapper):
         """
@@ -39,7 +39,7 @@ class Wrapper():
             :param obs:observation to modify
             :return: grayscale "image" as an array
             """
-            print("in obs")
+            #print("in obs")
             if isinstance(obs, dict):
                 print(obs)
             if len(obs.shape) == 3 and obs.shape[2] == 3:
@@ -61,7 +61,7 @@ class Wrapper():
         self.env = self.RewardClipper(envi)
         self.env = self.Preprocessing(self.env)
         self.env = gym.wrappers.FrameStack(self.env, 4)
-        print("end of Wrapper")
+        #print("end of Wrapper")
 
     def get_env(self):
         """
@@ -69,14 +69,11 @@ class Wrapper():
         :return: env with changed parameters
         """
         return self.env
-
-print(gym.envs.registry.keys())
-envi = gym.make(id="Minesweeper-pixels-v0.1", render_mode="rgb_array")
+"""
+#print(gym.envs.registry.keys())
+#envi = gym.make(id="Minesweeper-pixels-v0.1", render_mode="rgb_array")
 
 def testPreProcessing():
-    """
-    testPreProcessing tests the @Wrapper.PreProcessing
-    """
     process = Wrapper(envi)
     env = process.env
     i, m = env.reset()
@@ -89,9 +86,6 @@ def testPreProcessing():
         img_array.show()
 
 def testRewardClipping():
-    """
-    tests the @Wrapper.RewardClipper
-    """
     env = Wrapper(envi)
     env = env.get_env()
     env.reset()
@@ -102,8 +96,4 @@ testPreProcessing()
 envi.reset()
 x = envi.step(envi.action_space.sample())
 print("reward without clipping: " + str(x[1]))
-testRewardClipping()
-
-
-
-
+testRewardClipping()"""

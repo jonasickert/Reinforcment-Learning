@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import networks
+import wrapper
 from agent import DQNAgent #Maryem
 from evaluate import evaluate_trained_model #Maryem
 import Minesweeper
@@ -73,24 +74,33 @@ class Training:
         self.replay_memory = ReplayMemory(args)
         # jonas: self.env: gym.Env = args.env
         if self.args.env == 'Minesweeper-features-v0.1':
-            render_mode = "rgb_array"
+            self.render_mode = ""
             obs_type = "features"
-            self.env: gym.Env = gym.make(args.env, render_mode=render_mode)
+            self.env: gym.Env = gym.make(args.env, render_mode=self.render_mode)
             if obs_type == "features":
                 agent_shape = self.env.observation_space["agent"].shape
                 cells_shape = self.env.observation_space["cells"].shape
                 self.input_dim = agent_shape[0] + cells_shape[0] * cells_shape[1]
-
         else:
-            self.env: gym.Env = gym.make(args.env) #Maryem
+            self.render_mode = "rgb_array"
+            self.env: gym.Env = gym.make(args.env, render_mode=self.render_mode) #Maryem
+            wrap = wrapper.Wrapper(envi=self.env)
+            self.env = wrap.env
             self.input_dim = self.env.observation_space.shape[0] #Maryem
+            if self.args.env == 'Minesweeper-pixels-v0.1':
+                self.input_dim = self.env.observation_space.shape[2]  # Maryem
 
         self.output_dim = self.env.action_space.n #Maryem
         # jonas: self.q_network = networks.QFunction(input_dim=7056, output_dim=len(self.env.action_space.n))
         # jonas: self.t_network = networks.QFunction(input_dim=7056, output_dim=len(self.env.action_space.n))
         # Maryem:
-        self.q_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim)
-        self.t_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim)
+        # for minesweeper pixel space
+        self.q_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim, input_type="pixels")
+        self.t_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim, input_type="pixels")
+        if self.args.load is not None:
+            e = torch.load(self.args.load)
+            self.q_network.load_state_dict(e)
+            print("load of model successful")
         # Weights are random, not 0, weights at q and t different, have to set weights
         self.set_weights()
         # jonas :self.opti = optim.Adam(self.q_network.parameters())
@@ -105,6 +115,8 @@ class Training:
         self.steps_done = 0
         wandb.init(project="dqn_training_minesweeper", config=args)
 
+
+
     def set_weights(self):
         self.t_network.load_state_dict(self.q_network.state_dict())
 
@@ -114,12 +126,13 @@ class Training:
         training methods written the same as in the pseudocode
         """
 
-        total_timesteps = 10000000
-        evaluation_interval = 10000000000000
+        total_timesteps = 2500000
+        evaluation_interval = 2000
         next_evaluation = evaluation_interval
 
         while self.steps_done < total_timesteps:
             state, _ = self.env.reset()
+
             total_reward = 0
             # at every start (reset) the start sequence is equal to the next state sequence.
             # there is no pre preimage
@@ -149,6 +162,7 @@ class Training:
                         state_tensor = tensor.unsqueeze(0)
                     else:
                         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+                        #state_tensor = state_tensor.permute(0, 3, 1, 2)
                     with torch.no_grad():
                         action = np.argmax(self.q_network(state_tensor).numpy())
 
@@ -172,7 +186,7 @@ class Training:
                         self.set_weights()
 
                     # Print the current episode, environment step, reward, and loss function
-                    print(f"Step: {self.steps_done}, Episode Step: {episode_steps}, Reward: {reward}, Loss: {loss.item()}")
+                    #print(f"Step: {self.steps_done}, Episode Step: {episode_steps}, Reward: {reward}, Loss: {loss.item()}")
 
                     if self.batches_count % 25 == 0:
                         wandb.log({"loss_every_25_batches": loss.item(), "steps_done": self.steps_done})
@@ -180,17 +194,18 @@ class Training:
                 if done:
                     break
 
-            print(f"Total Reward: {total_reward}, Episode Steps: {episode_steps}")
+            print(f"Total Reward: {total_reward}, Episode Steps: {episode_steps}, total steps: {self.steps_done}")
             wandb.log({"total_reward": total_reward, "steps_done": self.steps_done})
 
             # Check if it's time to evaluate the model
+            print(self.steps_done>=next_evaluation)
             if self.steps_done >= next_evaluation:
                 print("Evaluating the model...")
-                filename = f"model_{self.steps_done}.pth"
+                filename = f"model_{self.render_mode}_{datetime.datetime.now()}_{self.steps_done}.pth"
                 torch.save(self.q_network.state_dict(), filename)
-                mean_reward = evaluate_trained_model(self.args.env, filename, num_episodes=10)
-                wandb.log({"mean_reward": mean_reward, "steps_done": self.steps_done})
-                self.log_evaluation(self.args.env, filename, self.steps_done)
+                #mean_reward = evaluate_trained_model(self.args.env, filename, num_episodes=10)
+                #wandb.log({"mean_reward": mean_reward, "steps_done": self.steps_done})
+                #self.log_evaluation(self.args.env, filename, self.steps_done)
                 next_evaluation += evaluation_interval
 
         print("Training completed.")
@@ -203,7 +218,7 @@ class Training:
         # jonas: rewards = torch.tensor([reward[0] for reward in minibatches], dtype=torch.float64)
         # jonas: next_states = torch.tensor([nstate[0] for nstate in minibatches], dtype=torch.float64)
         # jonas: dones = torch.tensor([done[0] for done in minibatches], dtype=torch.float64)
-        # Maryem:
+        #jonas:
         if self.args.env == 'Minesweeper-features-v0.1':
             next_states = []
             for nstate in minibatches:
@@ -211,10 +226,11 @@ class Training:
                 cells = nstate[3]['cells'].flatten()  # Flatten the cells array
                 combined = np.concatenate([agent, cells])
                 next_states.append(combined)
-
             next_states = torch.tensor(next_states, dtype=torch.float32)
         else:
             next_states = torch.tensor([nstate[3] for nstate in minibatches], dtype=torch.float32)
+            #next_states = next_states.permute(0, 3, 1, 2)
+        # Maryem:
         rewards = torch.tensor([reward[2] for reward in minibatches], dtype=torch.float32)
         dones = torch.tensor([done[4] for done in minibatches], dtype=torch.float32)
 
@@ -225,7 +241,7 @@ class Training:
         with torch.no_grad():
             # jonas: target_values = self.t_network(next_states).max(1)[0]
             # Maryem:
-            next_states = next_states.view(len(next_states), -1)  # Reshape to (batch_size, input_dim)
+            #next_states = next_states.view(len(next_states), -1)  # Reshape to (batch_size, input_dim)
             target_values = self.t_network(next_states).max(1)[0]
         # get the action_values for the next_states
 
@@ -259,7 +275,7 @@ class Training:
         else:
             states = torch.tensor([state[0] for state in minibatches], dtype=torch.float32)
         actions = torch.tensor([action[1] for action in minibatches], dtype=torch.int64)
-        states = states.view(len(states), -1)  # Reshape to (batch_size, input_dim)
+        #states = states.view(len(states), -1)  # Reshape to (batch_size, input_dim)
         action_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squeeze(1)
 
         loss = self.calc_loss(action_values, target_action_values)
@@ -281,13 +297,14 @@ if __name__ == "__main__":
     parser.add_argument("--episodes", type=int, default=10, help="Number of episodes")
     parser.add_argument("--batch", type=int, default=32, help="Minibatch size")
     parser.add_argument("--replay", type=int, default=1000000, help="Replay memory size")
-    parser.add_argument("--update_freq", type=int, default=10000, help="Frequency to update the target network")
+    parser.add_argument("--update_freq", type=int, default=5000, help="Frequency to update the target network")
     parser.add_argument("--discount", type=float, default=0.99, help="Discount factor for future rewards")
-    parser.add_argument("--learning_rate", type=float, default=0.001, help="Learning rate")
+    parser.add_argument("--learning_rate", type=float, default=0.0001, help="Learning rate")
     parser.add_argument("--expl_frame", type=int, default=1000000, help="Number of frames to perform exploration")
     parser.add_argument("--final_expl", type=float, default=0.1, help="Final exploration rate")
     parser.add_argument("--replay_start_size", type=int, default=50000, help="Minimum number of replay memories before training starts")
     parser.add_argument("--noop", type=int, default=30, help="Number of no-ops to perform")
+    parser.add_argument("--load", type=str, default=None, help="put in path name")
 
     args = parser.parse_args()
 

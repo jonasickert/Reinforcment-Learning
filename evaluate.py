@@ -88,8 +88,9 @@ def evaluate_trained_model(env_name, model_path, num_episodes=10):
         else:
             input_dim = env.observation_space.shape[0]  # Maryem
     else:
-        env: gym.Env = gym.make(args.env)  # Maryem
-        input_dim = env.observation_space.shape[0]  # Maryem
+        env: gym.Env = gym.make(env_name, render_mode="rgb_array")  # Maryem
+        input_dim = env.observation_space.shape[2]  # Maryem
+    print(input_dim)
     print("configured env, input_dum und output_dim")
     output_dim = env.action_space.n  # Maryem
     agent = DQNAgent(env, input_dim, None)

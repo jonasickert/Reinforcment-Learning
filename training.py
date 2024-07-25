@@ -108,12 +108,15 @@ class Training:
         self.calc_loss = nn.MSELoss()
         self.batches_count = 0
         if torch.cuda.is_available():
-            device = torch.device("cuda")
+            self.device = torch.device("cuda")
         else:
-            device = torch.device("cpu")
-        print(f'Using device: {device}')
+            self.device = torch.device("cpu")
+        self.q_network = self.q_network.to(self.device)
+        self.t_network = self.t_network.to(self.device)
+        print(f'Using device: {self.device}')
         self.steps_done = 0
         wandb.init(project="dqn_training_minesweeper", config=args)
+        self.filename = f"model_{self.render_mode}_{datetime.datetime.today().day}_{datetime.datetime.now().hour}{datetime.datetime.now().minute}.pth"
 
 
 
@@ -161,10 +164,10 @@ class Training:
                         tensor = torch.tensor(combined, dtype=torch.float32)
                         state_tensor = tensor.unsqueeze(0)
                     else:
-                        state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+                        state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
                         #state_tensor = state_tensor.permute(0, 3, 1, 2)
                     with torch.no_grad():
-                        action = np.argmax(self.q_network(state_tensor).numpy())
+                        action = np.argmax(self.q_network(state_tensor).cpu().numpy())
 
                 next_state, reward, done, _, _ = self.env.step(action)
                 total_reward += reward
@@ -174,7 +177,8 @@ class Training:
                 state = next_state
 
                 minibatches = self.replay_memory.get_exp()
-                if minibatches:
+                if minibatches and self.args.expl_frame<=self.steps_done:
+                    #
                     self.batches_count += 1
                     target_action_values = self.set_target_value(minibatches)
                     loss = self.calculate_loss(target_action_values, minibatches)
@@ -201,8 +205,11 @@ class Training:
             print(self.steps_done>=next_evaluation)
             if self.steps_done >= next_evaluation:
                 print("Evaluating the model...")
-                filename = f"model_{self.render_mode}_{datetime.datetime.now()}_{self.steps_done}.pth"
-                torch.save(self.q_network.state_dict(), filename)
+                if self.args.load is not None:
+                    self.filename = self.args.load
+                filename = f"model_{self.render_mode}_{datetime.datetime.today().day}_{datetime.datetime.now().hour}_{datetime.datetime.now().min}_{self.steps_done}.pth"
+                torch.save(self.q_network.state_dict(), self.filename)
+                print("saved")
                 #mean_reward = evaluate_trained_model(self.args.env, filename, num_episodes=10)
                 #wandb.log({"mean_reward": mean_reward, "steps_done": self.steps_done})
                 #self.log_evaluation(self.args.env, filename, self.steps_done)
@@ -228,11 +235,11 @@ class Training:
                 next_states.append(combined)
             next_states = torch.tensor(next_states, dtype=torch.float32)
         else:
-            next_states = torch.tensor([nstate[3] for nstate in minibatches], dtype=torch.float32)
+            next_states = torch.tensor([nstate[3] for nstate in minibatches], dtype=torch.float32).to(self.device)
             #next_states = next_states.permute(0, 3, 1, 2)
         # Maryem:
-        rewards = torch.tensor([reward[2] for reward in minibatches], dtype=torch.float32)
-        dones = torch.tensor([done[4] for done in minibatches], dtype=torch.float32)
+        rewards = torch.tensor([reward[2] for reward in minibatches], dtype=torch.float32).to(self.device)
+        dones = torch.tensor([done[4] for done in minibatches], dtype=torch.float32).to(self.device)
 
         if next_states.shape[0] == 0: #Maryem
             print("No next states available. Skipping target value computation.") #Maryem
@@ -273,9 +280,10 @@ class Training:
                 states.append(combined)
             states = torch.tensor(states, dtype=torch.float32)
         else:
-            states = torch.tensor([state[0] for state in minibatches], dtype=torch.float32)
-        actions = torch.tensor([action[1] for action in minibatches], dtype=torch.int64)
+            states = torch.tensor([state[0] for state in minibatches], dtype=torch.float32).to(self.device)
+        actions = torch.tensor([action[1] for action in minibatches], dtype=torch.int64).to(self.device)
         #states = states.view(len(states), -1)  # Reshape to (batch_size, input_dim)
+        target_action_values = target_action_values.to(self.device)
         action_values = self.q_network(states).gather(1, actions.unsqueeze(1)).squeeze(1)
 
         loss = self.calc_loss(action_values, target_action_values)
@@ -300,7 +308,7 @@ if __name__ == "__main__":
     parser.add_argument("--update_freq", type=int, default=5000, help="Frequency to update the target network")
     parser.add_argument("--discount", type=float, default=0.99, help="Discount factor for future rewards")
     parser.add_argument("--learning_rate", type=float, default=0.0001, help="Learning rate")
-    parser.add_argument("--expl_frame", type=int, default=1000000, help="Number of frames to perform exploration")
+    parser.add_argument("--expl_frame", type=int, default=100000, help="Number of frames to perform exploration")
     parser.add_argument("--final_expl", type=float, default=0.1, help="Final exploration rate")
     parser.add_argument("--replay_start_size", type=int, default=50000, help="Minimum number of replay memories before training starts")
     parser.add_argument("--noop", type=int, default=30, help="Number of no-ops to perform")

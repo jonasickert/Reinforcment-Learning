@@ -547,14 +547,14 @@ end_time = time.time()
 
 needed_time_1 = 0
 
-env = MinesweeperEnv(render_mode="rgb_array", obs_type="pixels")
+env = MinesweeperEnv(render_mode="human", obs_type="pixels")
 #env = FrameStack(env, 4)
 
 env.reset()
 #env.render()
 count_frames = 0
 start_time = time.time()
-while count_frames < 20:
+while count_frames < 20000:
     count_frames += 1
     rand = np.random.randint(0,5)
     x = env.step(rand)
@@ -563,5 +563,6 @@ while count_frames < 20:
         env.reset()
 end_time = time.time()
 needed_time = end_time-start_time
-print("FPS features: " + str(20000/needed_time_1)+", Steps: 20000, Needed Time: "+ str(needed_time_1)+", grid: 8x8")
-print("FPS pixels: " + str(20000/needed_time)+", Steps: 20000, Needed Time: "+ str(needed_time)+", grid: 8x8")"""
+#print("FPS features: " + str(20000/needed_time_1)+", Steps: 20000, Needed Time: "+ str(needed_time_1)+", grid: 8x8")
+#print("FPS pixels: " + str(20000/needed_time)+", Steps: 20000, Needed Time: "+ str(needed_time)+", grid: 8x8")
+"""

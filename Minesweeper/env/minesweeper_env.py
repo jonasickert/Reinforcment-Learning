@@ -7,6 +7,7 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 from PIL import Image
+import gymnasium.wrappers.frame_stack as fs
 
 from gymnasium.wrappers import FrameStack
 
@@ -19,7 +20,7 @@ class MinesweeperEnv(gym.Env):
     # and the image for the sprites.
     class GameOptions:
         # ----------------- Game Options -------------------- #
-        play_random = True
+        play_random = False
         amount_of_cells_width = 8
         size = width, height = 840, 840
         screen_size = 840
@@ -82,13 +83,16 @@ class MinesweeperEnv(gym.Env):
         self.canvas = pygame.Surface((self.window_size, self.window_size))
         #self.canvas.fill((255, 255, 255))
         self.action = True
-        self.first_uncover_at_random = True
+        self.first_uncover_at_random = False
         # 0 -> no changes at all
         # 1 -> just change circle
         # 2 -> change sprites list
         self.change_image = 0
         #self.count_frames = 0
         #self.start_time = time.time()
+
+    def get_agent_location(self):
+        return self._agent_location
 
     # return the observation spaces
     def _get_obs(self):
@@ -135,7 +139,9 @@ class MinesweeperEnv(gym.Env):
         self.game_option.counter = 0
         super().reset()
         self._conf_observation()
+        self.start_game((-1,-1))
         self.window = None
+        self.create_canvas()
         if self.obs_type is "pixels":
             self.create_canvas()
         if self.render_mode == "human":
@@ -454,8 +460,8 @@ class MinesweeperEnv(gym.Env):
 
             if self.obs_type == "pixels":
                 #self._render_frame()
+                self.create_canvas()
                 observation = self._get_obs()
-                # self.create_canvas()
 
             if self.render_mode == "human":
                 #print("in step in human calling _render_frame")
@@ -467,7 +473,7 @@ class MinesweeperEnv(gym.Env):
 
     # don't know why this exists; maybe for the AI who plays the game later on, fixed methods call?
     def render(self):
-        return self._render_frame()
+        return self.create_canvas()
 
 
     # @_render_frame updates the pygame window.
@@ -482,6 +488,8 @@ class MinesweeperEnv(gym.Env):
         self.canvas = None
         self.canvas = pygame.Surface((self.window_size, self.window_size))
         # self.canvas.fill((0, 0, 0))
+        #self.game_option.grid = self.create_grid(self.game_option.mines)
+        #self.create_sprites(self.game_option.grid)
         self.game_option.sprites_list.update()
         self.game_option.sprites_list.draw(self.canvas)
         pos_on_canvas = (
@@ -491,7 +499,13 @@ class MinesweeperEnv(gym.Env):
                         self.game_option.amount_of_cells_width - 1) * self.game_option.cell_length + self.game_option.cell_length / 2)
         pygame.draw.circle(self.canvas, (205, 38, 38), center=pos_on_canvas,
                            radius=self.game_option.cell_length / 2, width=8)
-        return np.transpose(np.array(pygame.surfarray.pixels3d(self.canvas)), axes=(1, 0, 2))
+        i = np.transpose(np.array(pygame.surfarray.pixels3d(self.canvas)), axes=(1, 0, 2))
+        """if isinstance(i, fs.LazyFrames):
+            i = np.array(i)
+        print(f"Lazyframes: {isinstance(i, fs.LazyFrames)}")
+        img_array = Image.fromarray(i)
+        img_array.show()"""
+        return i
 
 
     def _render_frame(self):
@@ -518,7 +532,7 @@ class MinesweeperEnv(gym.Env):
             self.create_canvas()
             self.window.blit(self.canvas, self.canvas.get_rect())
             pygame.display.flip()
-        self.clock.tick(24)
+        self.clock.tick(2)
 
         """
         if self.render_mode == "rgb_array":
@@ -548,7 +562,6 @@ end_time = time.time()
 needed_time_1 = 0
 
 env = MinesweeperEnv(render_mode="human", obs_type="pixels")
-#env = FrameStack(env, 4)
 
 env.reset()
 #env.render()
@@ -557,6 +570,7 @@ start_time = time.time()
 while count_frames < 20000:
     count_frames += 1
     rand = np.random.randint(0,5)
+    print(rand)
     x = env.step(rand)
     print(x[1])
     if x[2]:

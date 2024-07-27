@@ -1,6 +1,8 @@
 import argparse
 import gymnasium as gym
 import numpy as np
+
+import wrapper
 from random_agent import random_agent
 #*****extend_auf4b*****
 from agent import DQNAgent #Import the DQN agent 
@@ -27,7 +29,9 @@ def evaluate_agent(env_name, agent_type, num_episodes, log_wandb, path):
     if log_wandb:
         wandb.init(project="my-awesome-project", entity="tudortmundg3-tu-dortmund")
         
-    env = gym.make(env_name)
+    env = gym.make(env_name, render_mode="rgb_array")
+    e = wrapper.Wrapper(envi=env)
+    env = e.env
     # Initialize the random agent: from auf2b
     #agent = random_agent(env.action_space)
 
@@ -36,7 +40,8 @@ def evaluate_agent(env_name, agent_type, num_episodes, log_wandb, path):
         agent = random_agent(env.action_space)
     elif agent_type == 'dqn':
         input_dim = env.observation_space.shape[0]
-        agent = DQNAgent(env, input_dim, path)
+        agent = DQNAgent(env, input_dim, path, )
+        agent.load_network(path)
     else:
         raise ValueError(f"Unsupported agent type: {agent_type}")
     #**********************
@@ -46,12 +51,17 @@ def evaluate_agent(env_name, agent_type, num_episodes, log_wandb, path):
     for episode in range(num_episodes):
         # Reset the environment to start a new episode
         state, _ = env.reset()
+
         done = False
         episode_reward = 0
-
+        steps = 0
         while not done:
+            if steps > 100:
+                break
+            steps += 1
             # Select an action randomly from class random_agent
             action = agent.select_action(state)
+            print(action)
             state, reward, done, truncated, info = env.step(action)
             episode_reward += reward
 
@@ -76,23 +86,10 @@ def evaluate_agent(env_name, agent_type, num_episodes, log_wandb, path):
 
 
 def evaluate_trained_model(env_name, model_path, num_episodes=10):
-    print("in evaluate_trained_model")
-    if env_name == 'Minesweeper-features-v0.1':
-        render_mode = "rgb_array"
-        obs_type = "features"
-        env: gym.Env = gym.make(env_name, render_mode=render_mode)
-        if obs_type == "features":
-            agent_shape = env.observation_space["agent"].shape
-            cells_shape = env.observation_space["cells"].shape
-            input_dim = agent_shape[0] + cells_shape[0] * cells_shape[1]
-        else:
-            input_dim = env.observation_space.shape[0]  # Maryem
-    else:
-        env: gym.Env = gym.make(env_name, render_mode="rgb_array")  # Maryem
-        input_dim = env.observation_space.shape[2]  # Maryem
-    print(input_dim)
-    print("configured env, input_dum und output_dim")
-    output_dim = env.action_space.n  # Maryem
+    env: gym.Env = gym.make(env_name, render_mode="rgb_array")  # Maryem
+    e = wrapper.Wrapper(envi=env)
+    env = e.env
+    input_dim = env.observation_space.shape[2]  # Maryem
     agent = DQNAgent(env, input_dim, None)
     print(model_path)
     agent.load_network(model_path)  # Load the trained model weights
@@ -106,15 +103,12 @@ def evaluate_trained_model(env_name, model_path, num_episodes=10):
         episode_reward = 0
         action_counter = 0
         old_action = None
-
+        steps = 0
         while not done:
-            if env_name == 'Minesweeper-features-v0.1':
-                agent_data = state['agent']
-                cells_data = state['cells'].flatten()  # Flache das cells-Array ab
-                states = np.concatenate([agent_data, cells_data])
-                state = np.array(states, dtype=np.float32)  # Konvertiere in numpy Array
+            if steps > 100:
+                break
+            steps += 1
             action = agent.select_action(state)  # Select action using the trained DQN agent
-            print(action)
             next_state, reward, done, _, _ = env.step(action)
             episode_reward += reward
             state = next_state

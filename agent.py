@@ -2,6 +2,7 @@ import networks
 import gymnasium as gym
 import torch
 import io
+import numpy as np
 
 class DQNAgent():
 
@@ -15,7 +16,7 @@ class DQNAgent():
         input_dim (int): The dimension of the input (observation space).
         """
         # initialisiere Netzwerk
-        self.dqn = networks.QFunction(input_dim=input_dim, output_dim=env.action_space.n)
+        self.dqn = networks.QFunction(input_dim=input_dim, output_dim=env.action_space.n, input_type="pixels")
         if filepath is not None:
             self.load_network(filepath)
 
@@ -30,8 +31,8 @@ class DQNAgent():
         Returns: the action the agent has to choose
         int: The selected action, represented as an integer.
         """
+        state = np.array(state)
         state = torch.from_numpy(state).float().unsqueeze(0)  # Convert state to tensor
-
         # Disable gradient calculation since we are in evaluation mode
         with torch.no_grad():
             action_values = self.dqn(state)
@@ -55,7 +56,9 @@ class DQNAgent():
         """
 
         # Convert the state from a NumPy array to a PyTorch tensor
+        state = np.array(state)
         state = torch.from_numpy(state).float().unsqueeze(0)
+
         
         # Pass the state through the DQN to get action values
         action_values = self.dqn(state).detach().numpy().flatten()

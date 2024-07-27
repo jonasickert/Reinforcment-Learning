@@ -3,12 +3,14 @@ import gymnasium as gym
 import os
 import moviepy.editor as mpy
 import wandb
+import wrapper
 from random_agent import random_agent
 #*****Extend_Auf4)b*****
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 from agent import DQNAgent
+import gymnasium.wrappers.frame_stack as fs
 
 
 wandb.require("core")
@@ -16,6 +18,7 @@ wandb.require("core")
 #*****Extend_Auf4)b*****
 # Added agent_type
 def create_video(env_name, agent, output_dir, steps_done, num_episodes=1, render_mode='rgb_array', agent_type='random', log_wandb=False):
+    print("in create_video")
     """ 
     Creates a video of an agent's performance in a Gym environment.
 
@@ -32,6 +35,9 @@ def create_video(env_name, agent, output_dir, steps_done, num_episodes=1, render
     """
     
     env = gym.make(env_name, render_mode=render_mode)
+    e = wrapper.Wrapper(envi=env)
+    env = e.env
+    print("wapper created")
 
     for episode in range(num_episodes):
         state, _ = env.reset()
@@ -40,11 +46,17 @@ def create_video(env_name, agent, output_dir, steps_done, num_episodes=1, render
         action_values = []  # List to store action values for plotting
 
         frames = []
+        steps = 0
+        env.step(0)
         while not done:
+            if steps > 200:
+                break
+            steps += 1
             if render_mode == 'human':
-                env.render() # Render the environment for human viewing
+                r = env.render() # Render the environment for human viewing
             else:
-                frames.append(env.render()) # Capture frames for video
+                r = env.render()
+                frames.append(r) # Capture frames for video
 
             action = agent.select_action(state)
             state, reward, done, truncated, info = env.step(action)

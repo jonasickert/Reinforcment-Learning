@@ -12,6 +12,8 @@ import wrapper
 from agent import DQNAgent #Maryem
 from evaluate import evaluate_trained_model #Maryem
 import Minesweeper
+from PIL import Image
+import gymnasium.wrappers.frame_stack as fs
 
 from videos import create_video
 import wandb
@@ -115,8 +117,8 @@ class Training:
         self.t_network = self.t_network.to(self.device)
         print(f'Using device: {self.device}')
         self.steps_done = 0
-        wandb.init(project="dqn_training_minesweeper", config=args)
-        self.filename = f"model_{self.render_mode}_{datetime.datetime.today().day}_{datetime.datetime.now().hour}{datetime.datetime.now().minute}.pth"
+        wandb.init(project="Minesweeper-pixel", entity="tudortmundg3-tu-dortmund", config=args)
+        self.time_of_start = f"{self.render_mode}_{datetime.datetime.today().day}_{datetime.datetime.now().hour}{datetime.datetime.now().minute}"
 
 
 
@@ -129,12 +131,17 @@ class Training:
         training methods written the same as in the pseudocode
         """
 
-        total_timesteps = 2500000
-        evaluation_interval = 2000
+        total_timesteps = 125000
+        evaluation_interval = 10000
         next_evaluation = evaluation_interval
 
         while self.steps_done < total_timesteps:
             state, _ = self.env.reset()
+            """if isinstance(state, fs.LazyFrames):
+                i = np.array(state)
+            print(f"Lazyframes: {isinstance(state, fs.LazyFrames)}")
+            img_array = Image.fromarray(state[3])
+            img_array.show()"""
 
             total_reward = 0
             # at every start (reset) the start sequence is equal to the next state sequence.
@@ -188,6 +195,8 @@ class Training:
 
                     if self.steps_done % self.args.update_freq == 0:
                         self.set_weights()
+                        self.filename = f"model_{self.time_of_start}_{self.steps_done}.pth"
+                        torch.save(self.q_network.state_dict(), self.filename)
 
                     # Print the current episode, environment step, reward, and loss function
                     #print(f"Step: {self.steps_done}, Episode Step: {episode_steps}, Reward: {reward}, Loss: {loss.item()}")
@@ -205,14 +214,12 @@ class Training:
             print(self.steps_done>=next_evaluation)
             if self.steps_done >= next_evaluation:
                 print("Evaluating the model...")
-                if self.args.load is not None:
-                    self.filename = self.args.load
-                filename = f"model_{self.render_mode}_{datetime.datetime.today().day}_{datetime.datetime.now().hour}_{datetime.datetime.now().min}_{self.steps_done}.pth"
+                self.filename = f"model_{self.time_of_start}_{self.steps_done}.pth"
                 torch.save(self.q_network.state_dict(), self.filename)
                 print("saved")
-                #mean_reward = evaluate_trained_model(self.args.env, filename, num_episodes=10)
-                #wandb.log({"mean_reward": mean_reward, "steps_done": self.steps_done})
-                #self.log_evaluation(self.args.env, filename, self.steps_done)
+                mean_reward = evaluate_trained_model(self.args.env, self.filename, num_episodes=10)
+                wandb.log({"mean_reward": mean_reward, "steps_done": self.steps_done})
+                self.log_evaluation(self.args.env, self.filename, self.steps_done)
                 next_evaluation += evaluation_interval
 
         print("Training completed.")
@@ -294,7 +301,7 @@ class Training:
         output_dir = "./videos"
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-
+        e = wrapper.Wrapper(self.env)
         agent = DQNAgent(self.env, self.input_dim, None)
         agent.load_network(model_path)
         create_video(env_name, agent, output_dir,steps_done=steps_done,num_episodes=1, render_mode='rgb_array', agent_type='dqn', log_wandb=True)

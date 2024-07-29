@@ -131,7 +131,7 @@ class Training:
         training methods written the same as in the pseudocode
         """
 
-        total_timesteps = 125000
+        total_timesteps = 300000
         evaluation_interval = 10000
         next_evaluation = evaluation_interval
 

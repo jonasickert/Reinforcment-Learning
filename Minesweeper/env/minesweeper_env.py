@@ -20,7 +20,8 @@ class MinesweeperEnv(gym.Env):
     # and the image for the sprites.
     class GameOptions:
         # ----------------- Game Options -------------------- #
-        play_random = False
+        play_random = True
+        reset_position = (0,0)
         amount_of_cells_width = 8
         size = width, height = 840, 840
         screen_size = 840
@@ -139,7 +140,7 @@ class MinesweeperEnv(gym.Env):
         self.game_option.counter = 0
         super().reset()
         self._conf_observation()
-        self.start_game((-1,-1))
+        self.start_game(self.game_option.reset_position)
         self.window = None
         self.create_canvas()
         if self.obs_type is "pixels":
@@ -532,7 +533,7 @@ class MinesweeperEnv(gym.Env):
             self.create_canvas()
             self.window.blit(self.canvas, self.canvas.get_rect())
             pygame.display.flip()
-        self.clock.tick(2)
+        self.clock.tick(24)
 
         """
         if self.render_mode == "rgb_array":

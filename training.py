@@ -131,9 +131,10 @@ class Training:
         training methods written the same as in the pseudocode
         """
 
-        total_timesteps = 300000
+        total_timesteps = self.args.total_steps
         evaluation_interval = 10000
         next_evaluation = evaluation_interval
+        mean_reward_last20eps = deque()
 
         while self.steps_done < total_timesteps:
             state, _ = self.env.reset()
@@ -208,7 +209,11 @@ class Training:
                     break
 
             print(f"Total Reward: {total_reward}, Episode Steps: {episode_steps}, total steps: {self.steps_done}")
-            wandb.log({"total_reward": total_reward, "steps_done": self.steps_done})
+            mean_reward_last20eps.append(total_reward)
+            if mean_reward_last20eps.__len__() == 21: mean_reward_last20eps.popleft()
+            cur = np.mean(mean_reward_last20eps)
+            wandb.log({"total_reward": total_reward, "steps_done": self.steps_done, "mean_reward": cur})
+
 
             # Check if it's time to evaluate the model
             print(self.steps_done>=next_evaluation)
@@ -317,7 +322,7 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", type=float, default=0.0001, help="Learning rate")
     parser.add_argument("--expl_frame", type=int, default=100000, help="Number of frames to perform exploration")
     parser.add_argument("--final_expl", type=float, default=0.1, help="Final exploration rate")
-    parser.add_argument("--replay_start_size", type=int, default=50000, help="Minimum number of replay memories before training starts")
+    parser.add_argument("--total_steps", type=int, default=130000, help="maximum steps in training")
     parser.add_argument("--noop", type=int, default=30, help="Number of no-ops to perform")
     parser.add_argument("--load", type=str, default=None, help="put in path name")
 

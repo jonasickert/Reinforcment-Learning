@@ -58,8 +58,8 @@ class Wrapper():
 
     def __init__(self, envi: gym.Env):
         """:param envi: environmnet that has to be changed"""
-        self.env = self.RewardClipper(envi)
-        self.env = self.Preprocessing(self.env)
+        #self.env = self.RewardClipper(envi)
+        self.env = self.Preprocessing(envi)
         self.env = gym.wrappers.FrameStack(self.env, 4)
         #print("end of Wrapper")
 

@@ -40,9 +40,6 @@ class MinesweeperEnv(gym.Env):
         grid_size = amount_of_cells_width * amount_of_cells_width
         counter = 0
 
-        def __init__(self):
-            if self.ai: self.amount_of_mines = 10
-
     # init of the Gym Environment => windows, clocks, observation spaces, render modes
     def __init__(self, render_mode, obs_type, **kwargs):
         self._agent_location = None
@@ -137,6 +134,7 @@ class MinesweeperEnv(gym.Env):
     # when obs_type is pixels, we still calculate the observation space for features but do not return them.
     # when obs_type is pixels, we return the return of @_render_frames
     def reset(self, **kwargs):
+        print("--------------------------------")
         self.game_option.counter = 0
         super().reset()
         self._conf_observation()
@@ -152,6 +150,7 @@ class MinesweeperEnv(gym.Env):
         #if self.obs_type == "pixels":
         #    self._render_frame()
         #    observation = self._get_obs()
+
         return observation, {}
 
     # this Cell only exists for creating the minesweeper grid
@@ -190,6 +189,7 @@ class MinesweeperEnv(gym.Env):
     # when the game is random => if
     # when game is not random => else, fixed array, best for training, changeable at GameOption
     def get_mines(self, x, y):
+        print(f"x: {x}, y:{y}")
         cells_with_mines = []
         if self.game_option.play_random:
             # when x and y is -1, we do not use the feature that at the first chosen cell and all neighbors are no
@@ -197,15 +197,19 @@ class MinesweeperEnv(gym.Env):
             neighbouring_cells = [(x, y), (x - 1, y - 1), (x, y - 1), (x + 1, y - 1), (x - 1, y), (x + 1, y),
                                   (x - 1, y + 1), (x, y + 1), (x + 1, y + 1)]
             while cells_with_mines.__len__() < self.game_option.amount_of_mines:
-                cell = (np.round(np.random.uniform(0, self.game_option.amount_of_cells_width - 1)),
-                        np.round(np.random.uniform(0, self.game_option.amount_of_cells_width - 1)))
+                xn = np.round(np.random.uniform(0, self.game_option.amount_of_cells_width - 1))
+                yn = np.round(np.random.uniform(0, self.game_option.amount_of_cells_width - 1))
+                cell = (xn, yn)
+                print(f"cell: {cell}")
                 if x == -1 and y == -1:
                     if cell not in cells_with_mines:
                         cells_with_mines.append(cell)
                 else:
-                    if cell not in cells_with_mines and cell not in neighbouring_cells:
+                    print(f"in get mine in else")
+                    if (cell not in cells_with_mines) and (cell not in neighbouring_cells):
                         cells_with_mines.append(cell)
-
+                        print("added cell")
+            print(f"neighbouring cells: {neighbouring_cells}")
             return cells_with_mines
         else:
             return [(2, 0), (7, 0), (0, 1), (0, 3), (6, 3), (2, 5), (3, 6), (4, 5), (3, 7), (5, 7)]
@@ -372,10 +376,13 @@ class MinesweeperEnv(gym.Env):
     # start_game starts the game, and restarts it
     # before starting the game all lists are set to default, mostly just empty lists
     def start_game(self, position):
+        print("in start_game")
         self.game_option.uncovered_sprites = 0
         self.game_option.sprites_list = pygame.sprite.Group()
         self.action = True
+        self.first_uncover_at_random = True
         if self.game_option.ai:
+            print("in start_game ai")
             #self.game_option.ai = False
             self.game_option.mines = self.get_mines(-1, -1)
             self.game_option.grid = self.create_grid(self.game_option.mines)
@@ -383,10 +390,13 @@ class MinesweeperEnv(gym.Env):
             self.ai_start()
         else:
             if position == (-1, -1):
+                print("in start_game -1-1")
                 self.game_option.mines = self.get_mines(-1, -1)
                 self.game_option.grid = self.create_grid(self.game_option.mines)
                 self.create_sprites(self.game_option.grid)
             else:
+                print("in start_game else")
+                print(f"pos0: {position[0]}, pos1: {position[1]}")
                 self.game_option.mines = self.get_mines(position[0], position[1])
                 #print(position)
                 self.game_option.grid = self.create_grid(self.game_option.mines)
@@ -401,12 +411,13 @@ class MinesweeperEnv(gym.Env):
     def step(self, action):
         self.game_option.counter += 1
         move = self._action_space[action]
-        #print(move)
+        print(move)
         # noop return
         if move[0]==-1 and move[1]==-1: #not in self._action_space:
             #print("in move 5")
             self.change_image = 0
             self.action = False
+            print(f"in first if in step")
             return self._get_obs(), float(0), False, False, {},
         else:
             # where to declare the click????
@@ -414,8 +425,13 @@ class MinesweeperEnv(gym.Env):
             self.action = True
             new_location = np.clip(self._agent_location + move, 0, 1)
 
-            if (self.first_uncover_at_random and
+
+            if (self.first_uncover_at_random and move[0]==0 and move[1]==0 and
                     new_location[0] == self._agent_location[0] and new_location[1] == self._agent_location[1]):
+                print("call start in step")
+                print(f"new location {new_location}")
+                print(f"move: {move}")
+                print(f"agent:location: {self._agent_location}")
                 self.start_game((np.rint(new_location[0]*(self.game_option.amount_of_cells_width-1)),
                                  np.rint(new_location[1]*(self.game_option.amount_of_cells_width-1))))
                 # here, change all the cells and
@@ -450,9 +466,11 @@ class MinesweeperEnv(gym.Env):
                         for cell in self.observation_cells:
                             if cell[0] == self._agent_location[0] and cell[1] == self._agent_location[1]:
                                 cell[2] = sprite.mines / 8
+                        break
             else:
                 reward = -0.02
             self._agent_location = new_location
+            print(f"agent:location: {self._agent_location}")
 
             if self.obs_type is "pixels":
                 self.create_canvas()
@@ -511,6 +529,7 @@ class MinesweeperEnv(gym.Env):
 
     def _render_frame(self):
         if self.window is None:
+            print("window is none")
             self.start_game((-1, -1))
             pygame.init()
             self.window = pygame.display.set_mode(self.game_option.size)
@@ -533,7 +552,7 @@ class MinesweeperEnv(gym.Env):
             self.create_canvas()
             self.window.blit(self.canvas, self.canvas.get_rect())
             pygame.display.flip()
-        self.clock.tick(24)
+        self.clock.tick(4)
 
         """
         if self.render_mode == "rgb_array":
@@ -561,7 +580,7 @@ while count_frames < 20000:
 end_time = time.time()
 
 needed_time_1 = 0
-
+"""
 env = MinesweeperEnv(render_mode="human", obs_type="pixels")
 
 env.reset()
@@ -571,13 +590,10 @@ start_time = time.time()
 while count_frames < 20000:
     count_frames += 1
     rand = np.random.randint(0,5)
-    print(rand)
     x = env.step(rand)
-    print(x[1])
     if x[2]:
         env.reset()
 end_time = time.time()
 needed_time = end_time-start_time
 #print("FPS features: " + str(20000/needed_time_1)+", Steps: 20000, Needed Time: "+ str(needed_time_1)+", grid: 8x8")
 #print("FPS pixels: " + str(20000/needed_time)+", Steps: 20000, Needed Time: "+ str(needed_time)+", grid: 8x8")
-"""

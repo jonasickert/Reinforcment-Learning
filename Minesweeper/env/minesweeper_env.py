@@ -295,6 +295,7 @@ class MinesweeperEnv(gym.Env):
         queue_to_uncover = [(grid_x, grid_y)]
         uncovered_queue = []
         counter = 1
+        reward = 0
         while queue_to_uncover:
             queue_to_uncover = [item for item in queue_to_uncover if item not in uncovered_queue]
             if queue_to_uncover.__len__() == 0:
@@ -318,13 +319,6 @@ class MinesweeperEnv(gym.Env):
                                 np.round(cell[1], 14) == np.round(y / (self.game_option.amount_of_cells_width - 1),
                                                                   14)):
                             cell[2] = np.round(sprite.mines/8,14)
-                        """for cell in self.observation_cells:
-                            if (np.round(cell[0], 14) == np.round(x / (self.game_option.amount_of_cells_width - 1),
-                                                                  14) and
-                                    np.round(cell[1], 14) == np.round(y / (self.game_option.amount_of_cells_width - 1),
-                                                                      14)):
-                                cell[2] = sprite.mines / 8
-                                break"""
                         for neighbour in neighbouring_cells:
                             queue_to_uncover.append(neighbour)
                         #self.game_option.uncovered_sprites += 1
@@ -340,6 +334,7 @@ class MinesweeperEnv(gym.Env):
                                     cell[2] = sprite.mines / 8
                                     break
                             uncovered_queue.append((x, y))
+        return uncovered_queue.__len__()
 
     def ai_start(self):
         new_location = [0,1]
@@ -439,8 +434,9 @@ class MinesweeperEnv(gym.Env):
                             self.change_sprite_image(sprite)
                         if sprite.mines == 0 and sprite.covered:
                             reward = float(1)
-                            self.uncover_cells_with_no_neighbour_mines(sprite.gridPosX, sprite.gridPosY,
+                            x = self.uncover_cells_with_no_neighbour_mines(sprite.gridPosX, sprite.gridPosY,
                                                                        self.game_option.mines)
+                            print(x)
                         if (self.game_option.grid_size - self.game_option.amount_of_mines ==
                                 self.game_option.uncovered_sprites):
                             self.first_uncover_at_random = True
@@ -561,7 +557,7 @@ while count_frames < 20000:
 end_time = time.time()
 
 needed_time_1 = 0
-"""
+
 env = MinesweeperEnv(render_mode="human", obs_type="pixels")
 
 env.reset()
@@ -578,3 +574,4 @@ end_time = time.time()
 needed_time = end_time-start_time
 #print("FPS features: " + str(20000/needed_time_1)+", Steps: 20000, Needed Time: "+ str(needed_time_1)+", grid: 8x8")
 #print("FPS pixels: " + str(20000/needed_time)+", Steps: 20000, Needed Time: "+ str(needed_time)+", grid: 8x8")
+"""

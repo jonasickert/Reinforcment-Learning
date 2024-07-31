@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["--env", "CartPole-v1", "--episodes", "10", "--learning_rate", "0.0005", "--update_freq", "5000", "--expl_frame", "50000", "--final_expl", "0.05"]
+            "args": ["--env", "Minesweeper-pixels-v0.1", "--episodes", "10", "--learning_rate", "0.0005", "--update_freq", "5000", "--expl_frame", "50000", "--final_expl", "0.05"]
         }
     ]
 }

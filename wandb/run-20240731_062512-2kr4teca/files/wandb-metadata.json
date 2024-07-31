@@ -1,0 +1,42 @@
+{
+  "os":  "Windows-10-10.0.22631-SP0",
+  "python":  "3.11.7",
+  "startedAt":  "2024-07-31T04:25:12.824300Z",
+  "args":  [
+    "--env",
+    "Minesweeper-pixels-v0.1",
+    "--episodes",
+    "10",
+    "--learning_rate",
+    "0.0005",
+    "--update_freq",
+    "5000",
+    "--expl_frame",
+    "50000",
+    "--final_expl",
+    "0.05"
+  ],
+  "program":  "C:\\Users\\enyua\\Documents\\GitHub\\G3\\training.py",
+  "codePath":  "training.py",
+  "email":  "enyua@outlook.de",
+  "root":  "C:\\Users\\enyua\\Documents\\GitHub\\G3",
+  "host":  "enyu",
+  "username":  "enyua",
+  "executable":  "C:\\Users\\enyua\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+  "codePathLocal":  "training.py",
+  "cpu_count":  8,
+  "cpu_count_logical":  16,
+  "disk":  {
+    "/":  {
+      "total":  "159604797440",
+      "used":  "99717611520"
+    }
+  },
+  "memory":  {
+    "total":  "17088319488"
+  },
+  "cpu":  {
+    "count":  8,
+    "countLogical":  16
+  }
+}

@@ -13,11 +13,17 @@ from agent import DQNAgent
 import gymnasium.wrappers.frame_stack as fs
 
 
+
+import torch
+from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.image import show_cam_on_image
+
+
 wandb.require("core")
 
 #*****Extend_Auf4)b*****
 # Added agent_type
-def create_video(env_name, agent, output_dir, steps_done, num_episodes=1, render_mode='rgb_array', agent_type='random', log_wandb=False):
+def create_video(env_name, agent, output_dir, cam,steps_done, num_episodes=1, render_mode='rgb_array', agent_type='random', log_wandb=False):
     print("in create_video")
     """ 
     Creates a video of an agent's performance in a Gym environment.
@@ -48,6 +54,7 @@ def create_video(env_name, agent, output_dir, steps_done, num_episodes=1, render
         frames = []
         steps = 0
         env.step(0)
+        
         while not done:
             if steps > 200:
                 break
@@ -82,7 +89,7 @@ def create_video(env_name, agent, output_dir, steps_done, num_episodes=1, render
             elif agent_type == 'dqn':
                 # Create frames with environment and action value plots
                 #side_by_side_frames = create_side_by_side_frames(frames, action_values)
-                side_by_side_frames = create_side_by_side_frames(frames,action_values)
+                side_by_side_frames = create_side_by_side_frames(frames,action_values, cam, state)
                 clip = mpy.ImageSequenceClip(side_by_side_frames, fps=env.metadata.get('render_fps', 30))
 
             clip.write_videofile(video_path, codec='libx264')
@@ -97,7 +104,7 @@ def create_video(env_name, agent, output_dir, steps_done, num_episodes=1, render
         env.close()
 
 #*****Extend_Auf4)b*****
-def create_side_by_side_frames(env_frames, action_values):
+def create_side_by_side_frames(env_frames, action_values, cam, state):
     # To store the combined frames
     side_by_side_frames = []
 
@@ -118,9 +125,13 @@ def create_side_by_side_frames(env_frames, action_values):
 
         # Resize the plot frame to match the height of the environment frame
         plt_frame_resized = resize_image(plt_frame, env_frame.shape[0])
+        
+        grayscale_cam = cam(input_tensor=state)
+        cam_image = show_cam_on_image(env_frame / 255.0, grayscale_cam, use_rgb=True)
 
+        
         # Combine the environment frame and plot frame side-by-side
-        combined_frame = np.hstack((env_frame, plt_frame_resized))
+        combined_frame = np.hstack((env_frame, plt_frame_resized, cam_image))
         side_by_side_frames.append(combined_frame)
 
     return side_by_side_frames

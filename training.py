@@ -18,6 +18,10 @@ import gymnasium.wrappers.frame_stack as fs
 from videos import create_video
 import wandb
 import os
+from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.image import show_cam_on_image
+
+
 
 class ReplayMemory():
     """Replay Memory, storage of experiences"""
@@ -309,7 +313,11 @@ class Training:
         e = wrapper.Wrapper(self.env)
         agent = DQNAgent(self.env, self.input_dim, None)
         agent.load_network(model_path)
-        create_video(env_name, agent, output_dir,steps_done=steps_done,num_episodes=1, render_mode='rgb_array', agent_type='dqn', log_wandb=True)
+        
+        # GRADCAM
+        target_layers = [agent.dqn.conv3]
+        cam = GradCAM(model=self.t_network, target_layers=target_layers)
+        create_video(env_name, agent, output_dir,cam,steps_done=steps_done,num_episodes=1, render_mode='rgb_array', agent_type='dqn', log_wandb=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a DQN agent.")
@@ -333,4 +341,4 @@ if __name__ == "__main__":
     training.start_training()
 #example use
 
-#python training.py --env CartPole-v1 --episodes 10 --learning_rate 0.0005 --update_freq 5000 --expl_frame 50000 --final_expl 0.05
+#python training.py --env Minesweeper-pixels-v0.1 --episodes 10 --learning_rate 0.0005 --update_freq 5000 --expl_frame 50000 --final_expl 0.05

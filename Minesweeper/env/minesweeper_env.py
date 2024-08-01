@@ -436,7 +436,7 @@ class MinesweeperEnv(gym.Env):
                             reward = float(1)
                             x = self.uncover_cells_with_no_neighbour_mines(sprite.gridPosX, sprite.gridPosY,
                                                                        self.game_option.mines)
-                            print(x)
+
                         if (self.game_option.grid_size - self.game_option.amount_of_mines ==
                                 self.game_option.uncovered_sprites):
                             self.first_uncover_at_random = True

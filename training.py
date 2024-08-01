@@ -12,6 +12,7 @@ import wrapper
 from agent import DQNAgent #Maryem
 from evaluate import evaluate_trained_model #Maryem
 import Minesweeper
+import flappy_bird_gymnasium
 from PIL import Image
 import gymnasium.wrappers.frame_stack as fs
 
@@ -103,6 +104,7 @@ class Training:
         # for minesweeper pixel space
         self.q_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim, input_type="pixels")
         self.t_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim, input_type="pixels")
+        print(gym.envs.registry.keys())
         if self.args.load is not None:
             e = torch.load(self.args.load)
             self.q_network.load_state_dict(e)
@@ -164,6 +166,9 @@ class Training:
                 episode_steps += 1
                 exploration_rate = self.args.final_expl + (1 - self.args.final_expl) * np.exp(-1. * self.steps_done / self.args.expl_frame)
 
+
+
+
                 if np.random.random() < exploration_rate:
                     action = self.env.action_space.sample()
                 # choose the action random if eps.-greedy or still in exploration phase
@@ -180,6 +185,11 @@ class Training:
                         #state_tensor = state_tensor.permute(0, 3, 1, 2)
                     with torch.no_grad():
                         action = np.argmax(self.q_network(state_tensor).cpu().numpy())
+
+                if self.steps_done<self.args.expl_frame:
+                    action = action = self.env.action_space.sample()
+
+                #print(action)
 
                 next_state, reward, done, _, _ = self.env.step(action)
                 total_reward += reward
@@ -315,9 +325,10 @@ class Training:
         agent.load_network(model_path)
         
         # GRADCAM
-        target_layers = [agent.dqn.conv3]
-        cam = GradCAM(model=self.t_network, target_layers=target_layers)
-        create_video(env_name, agent, output_dir,cam,steps_done=steps_done,num_episodes=1, render_mode='rgb_array', agent_type='dqn', log_wandb=True)
+        target_layers = self.t_network.conv3
+        #cam = GradCAM(model=self.t_network, target_layers=[target_layers])
+        create_video(env_name, agent, output_dir,  steps_done=steps_done, num_episodes=1, render_mode='rgb_array', agent_type='dqn', log_wandb=True)
+        # output_dir, cam, ...cam,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a DQN agent.")

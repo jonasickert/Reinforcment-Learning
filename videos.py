@@ -5,25 +5,26 @@ import moviepy.editor as mpy
 import wandb
 import wrapper
 from random_agent import random_agent
-#*****Extend_Auf4)b*****
+# *****Extend_Auf4)b*****
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 from agent import DQNAgent
 import gymnasium.wrappers.frame_stack as fs
-
-
+from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 
 import torch
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
-
 wandb.require("core")
 
-#*****Extend_Auf4)b*****
+
+# *****Extend_Auf4)b*****
 # Added agent_type
-def create_video(env_name, agent, output_dir, cam,steps_done, num_episodes=1, render_mode='rgb_array', agent_type='random', log_wandb=False):
+def create_video(env_name, agent, output_dir,  steps_done, num_episodes=1, render_mode='rgb_array',
+                 agent_type='random', log_wandb=False):
+    # output_dir,cam,
     print("in create_video")
     """ 
     Creates a video of an agent's performance in a Gym environment.
@@ -39,61 +40,73 @@ def create_video(env_name, agent, output_dir, cam,steps_done, num_episodes=1, re
         agent_type (str, optional): The type of agent (e.g., 'random', 'dqn'). Defaults to 'random'.    
         log_wandb (bool, optional): to log results to Weights & biases. Default is set to False
     """
-    
+
     env = gym.make(env_name, render_mode=render_mode)
     e = wrapper.Wrapper(envi=env)
     env = e.env
-    print("wapper created")
 
     for episode in range(num_episodes):
         state, _ = env.reset()
         done = False
-        #*****Extend_Auf4)b*****
+        # *****Extend_Auf4)b*****
         action_values = []  # List to store action values for plotting
 
         frames = []
+        cam_frames = []
         steps = 0
         env.step(0)
-        
+
         while not done:
             if steps > 200:
                 break
             steps += 1
             if render_mode == 'human':
-                r = env.render() # Render the environment for human viewing
+                r = env.render()  # Render the environment for human viewing
             else:
                 r = env.render()
-                frames.append(r) # Capture frames for video
+                #print(f"r: {r.shape}")
+                frames.append(r)  # Capture frames for video
 
             action = agent.select_action(state)
             state, reward, done, truncated, info = env.step(action)
+            #print(f"state.shape: {state.shape}")
+            #print(isinstance(state, fs.LazyFrames))
+            #img_array = Image.fromarray(state[3])
+            #img_array.show()
+            #img_array = np.array(img_array)/255
+            #print(img_array)
+            #print(isinstance(img_array))
+            #cam_state = np.array(img_array)
+            #cam_state = torch.from_numpy(cam_state).float().unsqueeze(0)
+            #cam_frames.append(cam_state)
+            #print()
 
-            #*****Extend_Auf4)b*****
+            # *****Extend_Auf4)b*****
             if agent_type == 'dqn':
                 # Store the Q-value for the chosen action in that state
-                #action_values.append(q_value)
+                # action_values.append(q_value)
                 q_value = agent.compute_action_value(state, action)
                 action_values.append(q_value)
-
 
         if render_mode == 'rgb_array':
             # Create video file using MoviePy ('pip install MoviePy' -if needed)
             video_path = os.path.join(output_dir, f"{env_name}_episode_{steps_done}.mp4")
             print(f"Saving video to {video_path}")
-            #clip = mpy.ImageSequenceClip(frames, fps=env.metadata.get('render_fps', 30))
-            #clip.write_videofile(video_path, codec='libx264')
+            # clip = mpy.ImageSequenceClip(frames, fps=env.metadata.get('render_fps', 30))
+            # clip.write_videofile(video_path, codec='libx264')
 
-            #*****Extend_Auf4)b*****
+            # *****Extend_Auf4)b*****
             if agent_type == 'random':
                 clip = mpy.ImageSequenceClip(frames, fps=env.metadata.get('render_fps', 30))
             elif agent_type == 'dqn':
                 # Create frames with environment and action value plots
-                #side_by_side_frames = create_side_by_side_frames(frames, action_values)
-                side_by_side_frames = create_side_by_side_frames(frames,action_values, cam, state)
+                # side_by_side_frames = create_side_by_side_frames(frames, action_values)
+                side_by_side_frames = create_side_by_side_frames(frames, action_values, state)
+                # action_values,cam_frames,cam,
                 clip = mpy.ImageSequenceClip(side_by_side_frames, fps=env.metadata.get('render_fps', 30))
 
             clip.write_videofile(video_path, codec='libx264')
-            
+
             if log_wandb:
                 if os.path.exists(video_path):
                     print(f"Logging video to wandb: {video_path}")
@@ -103,14 +116,15 @@ def create_video(env_name, agent, output_dir, cam,steps_done, num_episodes=1, re
 
         env.close()
 
-#*****Extend_Auf4)b*****
-def create_side_by_side_frames(env_frames, action_values, cam, state):
+
+# *****Extend_Auf4)b*****
+def create_side_by_side_frames(env_frames,  action_values, state):
+    # cam_frames, action_values, cam,
     # To store the combined frames
     side_by_side_frames = []
 
     # Iterate through each environment frame and its index
     for i, env_frame in enumerate(env_frames):
-
         # Create a new figure and axis for plotting
         fig, ax = plt.subplots(figsize=(5, 5))
         ax.plot(range(i + 1), action_values[:i + 1], label='Q-value of chosen action')
@@ -125,13 +139,17 @@ def create_side_by_side_frames(env_frames, action_values, cam, state):
 
         # Resize the plot frame to match the height of the environment frame
         plt_frame_resized = resize_image(plt_frame, env_frame.shape[0])
-        
-        grayscale_cam = cam(input_tensor=state)
-        cam_image = show_cam_on_image(env_frame / 255.0, grayscale_cam, use_rgb=True)
 
-        
+        #state = np.array(state)
+        #state = torch.from_numpy(state).float().unsqueeze(0).requires_grad_(True)
+        #print(f"state.shape: {state.shape}")
+        #grayscale_cam = cam(input_tensor=state, targets=[ClassifierOutputTarget(1)])
+
+        #cam_image = show_cam_on_image(cam_frames[i]/ 255.0, grayscale_cam, use_rgb=False)
+
         # Combine the environment frame and plot frame side-by-side
-        combined_frame = np.hstack((env_frame, plt_frame_resized, cam_image))
+        combined_frame = np.hstack((env_frame, plt_frame_resized))
+        # plt_frame_resized, cam_image
         side_by_side_frames.append(combined_frame)
 
     return side_by_side_frames
@@ -172,13 +190,13 @@ def resize_image(image, target_height):
     img = Image.fromarray(image)
     aspect_ratio = img.width / img.height
     target_width = int(target_height * aspect_ratio)
-     # Resize
+    # Resize
     img_resized = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
     # Convert the resized PIL Image back to a numpy array and return
     return np.array(img_resized)
 
 
-#*****Extend_Auf4)b*****
+# *****Extend_Auf4)b*****
 # Added agent_type
 if __name__ == "__main__":
 
@@ -187,19 +205,21 @@ if __name__ == "__main__":
     parser.add_argument("--env", type=str, required=True, help="The Gymnasium environment to use.")
     parser.add_argument("--episodes", type=int, default=1, help="The number of episodes to record.")
     parser.add_argument("--output_dir", type=str, default="./videos", help="Directory to save the videos.")
-    parser.add_argument("--render_mode", type=str, choices=['human', 'rgb_array'], default='rgb_array', help="Render mode: 'human' for live rendering, 'rgb_array' for video recording.")
-    #*****Extend_Auf4)b*****
-    parser.add_argument("--agent", type=str, choices=["random", "dqn"], default="random", help="The type of agent to use.")
+    parser.add_argument("--render_mode", type=str, choices=['human', 'rgb_array'], default='rgb_array',
+                        help="Render mode: 'human' for live rendering, 'rgb_array' for video recording.")
+    # *****Extend_Auf4)b*****
+    parser.add_argument("--agent", type=str, choices=["random", "dqn"], default="random",
+                        help="The type of agent to use.")
 
-    parser.add_argument("--log_wandb", action="store_true",default=False, help="Log results to Weights & Biases.")
-    
+    parser.add_argument("--log_wandb", action="store_true", default=False, help="Log results to Weights & Biases.")
+
     # Parse the command-line arguments
     args = parser.parse_args()
 
-    # Initialize wandb 
+    # Initialize wandb
     if args.log_wandb and args.render_mode == 'rgb_array':
         wandb.init(project="my-awesome-project", entity="tudortmundg3-tu-dortmund")
-        
+
     # Create output directory if it doesn't exist
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
@@ -210,13 +230,13 @@ if __name__ == "__main__":
     output_dir = args.output_dir
     render_mode = args.render_mode
     log_wandb = args.log_wandb
-    #*****Extend_Auf4)b*****
+    # *****Extend_Auf4)b*****
     agent_type = args.agent
 
     # Create a random agent
-    #agent = random_agent(gym.make(env_name).action_space)
+    # agent = random_agent(gym.make(env_name).action_space)
 
-    #*****Extend_Auf4)b*****
+    # *****Extend_Auf4)b*****
     # Create the appropriate agent based on user selection
     env = gym.make(env_name)
     if agent_type == 'random':
@@ -228,8 +248,6 @@ if __name__ == "__main__":
 
     # Create the video
     create_video(env_name, agent, output_dir, num_episodes, render_mode, agent_type, args.log_wandb)
-
-
 
 """
 Example usage:

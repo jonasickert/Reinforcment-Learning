@@ -52,7 +52,7 @@ class ReplayMemory():
         if len(exp) == 5:
             self.memory.append(exp)
         else:
-            print("Too many or too few elements in experience")"""
+            #print("Too many or too few elements in experience")"""
 
     def get_exp(self):
         """
@@ -104,7 +104,7 @@ class Training:
         # for minesweeper pixel space
         self.q_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim, input_type="pixels")
         self.t_network = networks.QFunction(input_dim=self.input_dim, output_dim=self.output_dim, input_type="pixels")
-        print(gym.envs.registry.keys())
+        #print(gym.envs.registry.keys())
         if self.args.load is not None:
             e = torch.load(self.args.load)
             self.q_network.load_state_dict(e)
@@ -146,7 +146,7 @@ class Training:
             state, _ = self.env.reset()
             """if isinstance(state, fs.LazyFrames):
                 i = np.array(state)
-            print(f"Lazyframes: {isinstance(state, fs.LazyFrames)}")
+            #print(f"Lazyframes: {isinstance(state, fs.LazyFrames)}")
             img_array = Image.fromarray(state[3])
             img_array.show()"""
 
@@ -222,7 +222,7 @@ class Training:
                 if done:
                     break
 
-            print(f"Total Reward: {total_reward}, Episode Steps: {episode_steps}, total steps: {self.steps_done}")
+            #print(f"Total Reward: {total_reward}, Episode Steps: {episode_steps}, total steps: {self.steps_done}")
             mean_reward_last20eps.append(total_reward)
             if mean_reward_last20eps.__len__() == 21: mean_reward_last20eps.popleft()
             cur = np.mean(mean_reward_last20eps)
@@ -230,18 +230,18 @@ class Training:
 
 
             # Check if it's time to evaluate the model
-            print(self.steps_done>=next_evaluation)
+            #print(self.steps_done>=next_evaluation)
             if self.steps_done >= next_evaluation:
-                print("Evaluating the model...")
+                #print("Evaluating the model...")
                 self.filename = f"model_{self.time_of_start}_{self.steps_done}.pth"
                 torch.save(self.q_network.state_dict(), self.filename)
-                print("saved")
+                #print("saved")
                 mean_reward = evaluate_trained_model(self.args.env, self.filename, num_episodes=10)
                 wandb.log({"mean_reward": mean_reward, "steps_done": self.steps_done})
                 self.log_evaluation(self.args.env, self.filename, self.steps_done)
                 next_evaluation += evaluation_interval
 
-        print("Training completed.")
+        #print("Training completed.")
 
     def set_target_value(self, minibatches):
         """
@@ -268,7 +268,7 @@ class Training:
         dones = torch.tensor([done[4] for done in minibatches], dtype=torch.float32).to(self.device)
 
         if next_states.shape[0] == 0: #Maryem
-            print("No next states available. Skipping target value computation.") #Maryem
+            #print("No next states available. Skipping target value computation.") #Maryem
             return torch.tensor([]) #Maryem
 
         with torch.no_grad():
@@ -295,7 +295,7 @@ class Training:
         # jonas: loss = self.calc_loss(action_values, target_action_value)
         # Maryem:
         if len(target_action_values) == 0:
-            print("No target action values available. Skipping loss computation.")
+            #print("No target action values available. Skipping loss computation.")
             return torch.tensor(0.0)
         if self.args.env == 'Minesweeper-features-v0.1':
             states = []

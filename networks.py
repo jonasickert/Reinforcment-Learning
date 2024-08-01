@@ -18,11 +18,9 @@ class QFunction(nn.Module):
             # Convolutional layers for pixels
             self.conv1 = nn.Conv2d(4, 32, kernel_size=8, stride=4)
             self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
-            self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1)
-            self.fc1 = nn.Linear(128 * 7 * 7, 1024)  # Assuming input image size is 84x84
-            self.fc2 = nn.Linear(1024, 512)
-            self.fc3 = nn.Linear(512, 64)
-            self.fc4 = nn.Linear(64, output_dim)
+            self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+            self.fc1 = nn.Linear(7*7*64, 512)
+            self.fc2 = nn.Linear(512, output_dim)
         else:
             raise ValueError("Invalid input_type. Must be 'features' or 'pixels'.")
 
@@ -38,9 +36,7 @@ class QFunction(nn.Module):
             x = F.relu(self.conv3(x))
             x = x.reshape(x.size(0), -1)  # Flatten the tensor
             x = F.relu(self.fc1(x))
-            x = F.relu(self.fc2(x))
-            x = F.relu(self.fc3(x))
-            x = self.fc4(x)
+            x = self.fc2(x)
         return x
 
 

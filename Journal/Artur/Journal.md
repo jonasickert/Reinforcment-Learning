@@ -37,3 +37,19 @@
     - Video um args erweitert um logs optional auf wandb anzeigen zu lassen
 
 
+# 22.07
+
+    - Logging / Video / Evaluation
+    - Wandb Schnittstelle im Code eingefuegt
+    - richtige Evaluation Implementiert sodas nach x Environmentsteps evaluiert wird
+    - mean-reward implementiert
+    - Von jedem EvaluierungsZyklus ein Video erstellt und das in wandb hochgeladen
+    - Cartpol mit verschiedenen Environment steps und Evaluationen trainiert
+
+
+# 31.07
+
+    - Zusammen mit Jonas Grad-cam Implementation
+    - Pixel umgebung trainiert
+
+

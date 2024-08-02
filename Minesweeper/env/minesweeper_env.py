@@ -20,7 +20,7 @@ class MinesweeperEnv(gym.Env):
     # and the image for the sprites.
     class GameOptions:
         # ----------------- Game Options -------------------- #
-        play_random = True
+        play_random = False
         reset_position = (0,0)
         amount_of_cells_width = 8
         size = width, height = 840, 840

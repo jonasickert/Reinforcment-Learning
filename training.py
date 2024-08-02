@@ -142,7 +142,7 @@ class Training:
         """
 
         total_timesteps = self.args.total_steps
-        evaluation_interval = 10000
+        evaluation_interval = 1000
         next_evaluation = evaluation_interval
         mean_reward_last20eps = deque()
 
@@ -173,7 +173,7 @@ class Training:
 
 
 
-                if np.random.random() < exploration_rate:
+                if np.random.random() < exploration_rate or self.steps_done<self.args.expl_frame:
                     action = self.env.action_space.sample()
                 # choose the action random if eps.-greedy or still in exploration phase
 
@@ -190,8 +190,6 @@ class Training:
                     with torch.no_grad():
                         action = np.argmax(self.q_network(state_tensor).cpu().numpy())
 
-                if self.steps_done<self.args.expl_frame:
-                    action = action = self.env.action_space.sample()
 
                 #print(action)
 

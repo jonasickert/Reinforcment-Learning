@@ -169,7 +169,9 @@ def create_side_by_side_frames(env_frames, cam_frames, action_values, cam, astat
         cam_image = show_cam_on_image(img=cam_frames[i], mask=grayscale_cam, use_rgb=False)
         #print(cam_image.shape)
        #cam_image = cv2.cvtColor(cam_image, cv2.COLOR_GRAY2RGB)
-        cam_image = cv2.resize(cam_image, (800, 800))
+
+        if env_frame.shape != (84,84,3):
+            cam_image = cv2.resize(cam_image, (800, 800))
         #img_array = Image.fromarray(cam_image)
         #img_array.show()
 

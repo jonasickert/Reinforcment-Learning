@@ -46,9 +46,9 @@ class Wrapper():
                 # Konvertieren des Bildes in Graustufen
                 obs = cv2.cvtColor(obs.astype('uint8'), cv2.COLOR_RGB2GRAY)
                 # Ändern der Größe des Bildes
-                obs = cv2.resize(obs, (84, 110))
+                #obs = cv2.resize(obs, (84, 110))
                 # Zuschneiden des Bildes
-                obs = obs[13:97, :]
+                #obs = obs[13:97, :]
                 # Konvertieren in uint8, falls notwendig
                 if obs.dtype != np.uint8:
                     obs = (obs * 255).astype('uint8')

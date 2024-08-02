@@ -1,4 +1,6 @@
 import argparse
+
+import cv2
 import gymnasium as gym
 import os
 import moviepy.editor as mpy
@@ -22,9 +24,9 @@ wandb.require("core")
 
 # *****Extend_Auf4)b*****
 # Added agent_type
-def create_video(env_name, agent, output_dir,  steps_done, num_episodes=1, render_mode='rgb_array',
+def create_video(env_name, agent, output_dir, cam,  steps_done, num_episodes=1, render_mode='rgb_array',
                  agent_type='random', log_wandb=False):
-    # output_dir,cam,
+    # output_dir,
     print("in create_video")
     """ 
     Creates a video of an agent's performance in a Gym environment.
@@ -53,33 +55,42 @@ def create_video(env_name, agent, output_dir,  steps_done, num_episodes=1, rende
 
         frames = []
         cam_frames = []
+        states = []
+        actions = []
         steps = 0
         env.step(0)
 
         while not done:
-            if steps > 200:
+            if steps > 100:
                 break
             steps += 1
             if render_mode == 'human':
                 r = env.render()  # Render the environment for human viewing
             else:
                 r = env.render()
-                #print(f"r: {r.shape}")
                 frames.append(r)  # Capture frames for video
 
             action = agent.select_action(state)
             state, reward, done, truncated, info = env.step(action)
+            states.append(state)
+            actions.append(action)
+
             #print(f"state.shape: {state.shape}")
             #print(isinstance(state, fs.LazyFrames))
-            #img_array = Image.fromarray(state[3])
+            img_array = Image.fromarray(state[3])
             #img_array.show()
-            #img_array = np.array(img_array)/255
+            img_array = np.array(img_array)/255
             #print(img_array)
-            #print(isinstance(img_array))
-            #cam_state = np.array(img_array)
-            #cam_state = torch.from_numpy(cam_state).float().unsqueeze(0)
-            #cam_frames.append(cam_state)
-            #print()
+            cam_state = np.array(img_array)
+            #print(f"cam_state.dtype bf: {cam_state.dtype}")
+            #print(f"cam_state.shape bf: {cam_state.shape}")
+            cam_state = torch.from_numpy(cam_state).float().unsqueeze(0)
+            cam_state = cam_state.permute(1,2,0)
+            cam_state = np.float32(cam_state)
+
+            #print(f"cam_state.dtype: {cam_state.dtype}")
+            #print(f"cam_state.shape: {cam_state.shape}")
+            cam_frames.append(cam_state)
 
             # *****Extend_Auf4)b*****
             if agent_type == 'dqn':
@@ -101,8 +112,8 @@ def create_video(env_name, agent, output_dir,  steps_done, num_episodes=1, rende
             elif agent_type == 'dqn':
                 # Create frames with environment and action value plots
                 # side_by_side_frames = create_side_by_side_frames(frames, action_values)
-                side_by_side_frames = create_side_by_side_frames(frames, action_values, state)
-                # action_values,cam_frames,cam,
+                side_by_side_frames = create_side_by_side_frames(frames, cam_frames, action_values, cam, states, actions)
+                # action_values,
                 clip = mpy.ImageSequenceClip(side_by_side_frames, fps=env.metadata.get('render_fps', 30))
 
             clip.write_videofile(video_path, codec='libx264')
@@ -118,8 +129,8 @@ def create_video(env_name, agent, output_dir,  steps_done, num_episodes=1, rende
 
 
 # *****Extend_Auf4)b*****
-def create_side_by_side_frames(env_frames,  action_values, state):
-    # cam_frames, action_values, cam,
+def create_side_by_side_frames(env_frames, cam_frames, action_values, cam, astate, acrions):
+    #  action_values,
     # To store the combined frames
     side_by_side_frames = []
 
@@ -140,17 +151,38 @@ def create_side_by_side_frames(env_frames,  action_values, state):
         # Resize the plot frame to match the height of the environment frame
         plt_frame_resized = resize_image(plt_frame, env_frame.shape[0])
 
-        #state = np.array(state)
-        #state = torch.from_numpy(state).float().unsqueeze(0).requires_grad_(True)
+        state = astate[i]
+        action = acrions[i]
+        state = np.array(state)
+        state = torch.from_numpy(state).float().unsqueeze(0)#.requires_grad_(True)
         #print(f"state.shape: {state.shape}")
-        #grayscale_cam = cam(input_tensor=state, targets=[ClassifierOutputTarget(1)])
+        grayscale_cam = cam(input_tensor=state, targets=[ClassifierOutputTarget(action)])
+        grayscale_cam = grayscale_cam[0, :]
+        img = np.array(cam_frames[i])
+        #img_array = Image.fromarray(cam_frames[i])
+        #img_array.show()
+        camf = cam_frames[i].shape
+        #print(camf)
+        grayscale_cam = abs(grayscale_cam)
+        #print(f"grayscale_cam.shape: {grayscale_cam.shape}")
+        #print(f"grayscale_cam.dtype: {grayscale_cam.dtype}")
+        cam_image = show_cam_on_image(img=cam_frames[i], mask=grayscale_cam, use_rgb=False)
+        #print(cam_image.shape)
+       #cam_image = cv2.cvtColor(cam_image, cv2.COLOR_GRAY2RGB)
+        cam_image = cv2.resize(cam_image, (800, 800))
+        #img_array = Image.fromarray(cam_image)
+        #img_array.show()
 
-        #cam_image = show_cam_on_image(cam_frames[i]/ 255.0, grayscale_cam, use_rgb=False)
+        #print(env_frame.shape)
+        #print(plt_frame_resized.shape)
+
+
 
         # Combine the environment frame and plot frame side-by-side
-        combined_frame = np.hstack((env_frame, plt_frame_resized))
-        # plt_frame_resized, cam_image
+        combined_frame = np.hstack((env_frame, plt_frame_resized, cam_image))
+        # plt_frame_resized
         side_by_side_frames.append(combined_frame)
+        #state = state.requires_grad_(False)
 
     return side_by_side_frames
 

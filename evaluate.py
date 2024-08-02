@@ -1,13 +1,16 @@
 import argparse
 import gymnasium as gym
 import numpy as np
+from pytorch_grad_cam import GradCAM
 
+import videos
 import wrapper
 from random_agent import random_agent
 #*****extend_auf4b*****
 from agent import DQNAgent #Import the DQN agent 
 import wandb
 import torch
+import ball_game
 
 #enables the WB backend
 wandb.require("core")
@@ -27,7 +30,7 @@ def evaluate_agent(env_name, agent_type, num_episodes, log_wandb, path):
     """
     
     if log_wandb:
-        wandb.init(project="my-awesome-project", entity="tudortmundg3-tu-dortmund")
+        wandb.init(project="Evaluations", entity="tudortmundg3-tu-dortmund")
         
     env = gym.make(env_name, render_mode="rgb_array")
     e = wrapper.Wrapper(envi=env)
@@ -56,12 +59,11 @@ def evaluate_agent(env_name, agent_type, num_episodes, log_wandb, path):
         episode_reward = 0
         steps = 0
         while not done:
-            if steps > 100:
-                break
+            if steps > 10000:
+               break
             steps += 1
             # Select an action randomly from class random_agent
             action = agent.select_action(state)
-            print(action)
             state, reward, done, truncated, info = env.step(action)
             episode_reward += reward
 
@@ -83,6 +85,13 @@ def evaluate_agent(env_name, agent_type, num_episodes, log_wandb, path):
     if log_wandb:
         wandb.log({"average_reward": avg_reward})
         wandb.finish()
+
+    output_dir = "./evaluation_videos"
+    target_layers = agent.dqn.conv3
+    cam = GradCAM(model=agent.dqn, target_layers=[target_layers])
+    videos.create_video(env_name, agent, output_dir, cam, steps_done=avg_reward, num_episodes=1, render_mode='rgb_array',
+                 agent_type='dqn', log_wandb=False)
+
 
 
 def evaluate_trained_model(env_name, model_path, num_episodes=10):
@@ -143,6 +152,8 @@ if __name__ == "__main__":
 
     
     args = parser.parse_args()
+
+    print(gym.registry.keys())
 
     #*****extend_auf4b*****
     #added agent_type

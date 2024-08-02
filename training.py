@@ -142,7 +142,7 @@ class Training:
         """
 
         total_timesteps = self.args.total_steps
-        evaluation_interval = 5000
+        evaluation_interval = 10000
         next_evaluation = evaluation_interval
         mean_reward_last20eps = deque()
 

@@ -134,7 +134,9 @@ def create_side_by_side_frames(env_frames, cam_frames, action_values, cam, astat
     # To store the combined frames
     side_by_side_frames = []
 
-    # Iterate through each environment frame and its index
+    # Use the height of the environment frame as the standard height
+    standard_height = env_frames[0].shape[0]
+
     for i, env_frame in enumerate(env_frames):
         # Create a new figure and axis for plotting
         fig, ax = plt.subplots(figsize=(5, 5))
@@ -149,8 +151,12 @@ def create_side_by_side_frames(env_frames, cam_frames, action_values, cam, astat
         plt.close(fig)
 
         # Resize the plot frame to match the height of the environment frame
-        plt_frame_resized = resize_image(plt_frame, env_frame.shape[0])
+        plt_frame_resized = resize_image(plt_frame, standard_height)
 
+        # Resize CAM image to match the height of the environment frame
+        cam_image = cv2.resize(cam_frames[i], (env_frame.shape[1], standard_height))
+
+        # Process state for GradCAM
         state = astate[i]
         action = acrions[i]
         state = np.array(state)
@@ -159,19 +165,13 @@ def create_side_by_side_frames(env_frames, cam_frames, action_values, cam, astat
         grayscale_cam = cam(input_tensor=state, targets=[ClassifierOutputTarget(action)])
         grayscale_cam = grayscale_cam[0, :]
         img = np.array(cam_frames[i])
-        #img_array = Image.fromarray(cam_frames[i])
-        #img_array.show()
-        camf = cam_frames[i].shape
-        #print(camf)
-        grayscale_cam = abs(grayscale_cam)
-        #print(f"grayscale_cam.shape: {grayscale_cam.shape}")
-        #print(f"grayscale_cam.dtype: {grayscale_cam.dtype}")
         cam_image = show_cam_on_image(img=cam_frames[i], mask=grayscale_cam, use_rgb=False)
         #print(cam_image.shape)
        #cam_image = cv2.cvtColor(cam_image, cv2.COLOR_GRAY2RGB)
 
-        if env_frame.shape != (84,84,3):
-            cam_image = cv2.resize(cam_image, (800, 800))
+        # Ensure CAM image is resized to match the height of the environment frame
+        if cam_image.shape[0] != standard_height:
+            cam_image = cv2.resize(cam_image, (env_frame.shape[1], standard_height))
         #img_array = Image.fromarray(cam_image)
         #img_array.show()
 
@@ -187,6 +187,7 @@ def create_side_by_side_frames(env_frames, cam_frames, action_values, cam, astat
         #state = state.requires_grad_(False)
 
     return side_by_side_frames
+
 
 
 def fig_to_image(fig):

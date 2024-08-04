@@ -62,27 +62,22 @@ class BallGameHardEnv(gym.Env):
         if action == 1:
             self.ball_speed_y = -20
 
-        self.ball_speed_y += 1.5  # Gravitationseffekt
+        self.ball_speed_y += 1.5
         self.ball_y += self.ball_speed_y
 
         if self.colission_line is None:
-            #rint("in if self.colission_line is None")
             x = np.random.random()
             if x<0.1:
-                self.height = np.random.randint(400, 500)
+                self.height = np.random.randint(150, 300)
                 self.colission_line = (0, 0)
                 b = np.random.random()
                 if b<0.5:
-
                     self.colission_line = (0, 0)
                 else:
                     self.colission_line = (1, self.screen_height)
 
         if self.colission_line is not None:
-            #print("in self.colission line")
-            # von oben
             direction, y = self.colission_line
-
             if direction==0:
                 if y < self.height:
                     y += self.colission_speed
@@ -92,7 +87,6 @@ class BallGameHardEnv(gym.Env):
                     y -= self.colission_speed
                     self.colission_line = (direction, y)
             else:
-
                 if y > self.screen_height-self.height:
                     y -= self.colission_speed
                     self.colission_line = (direction, y)
@@ -103,8 +97,6 @@ class BallGameHardEnv(gym.Env):
             if y==0 or y>=self.screen_height or y<=0:
                 self.colission_line = None
 
-
-        # Ball auf dem Boden aufprallen lassen
         if self.ball_y >= self.screen_height - self.ball_radius:
             self.ball_y = self.screen_height - self.ball_radius
             self.ball_speed_y = 0
@@ -121,7 +113,6 @@ class BallGameHardEnv(gym.Env):
             self.ball_speed_y = 0
             done = True
         elif self.colission_line is not  None:
-
             direction, y = self.colission_line
             if direction == 0:
                 ball_height_y = self.ball_y - self.ball_radius
@@ -132,23 +123,15 @@ class BallGameHardEnv(gym.Env):
                 if ball_height_y >= y-self.colission_line_thick/2:
                     done = True
 
-
         reward = float(0.1) if not done else float(-1)
-
         if self.render_mode == "human":
             self.render_frame()
-
         obs = self.get_obs()
-
         return obs, reward, done, False, {}
 
     def create_canvas(self):
         self.canvas = pygame.Surface((800,800))
         self.canvas.fill((255, 255, 255))
-        #pygame.draw.line(self.canvas, (126, 200, 80), (0, self.screen_height-15),
-        #                 (self.screen_width, self.screen_height-15 ), 30)
-        #pygame.draw.line(self.canvas, (135, 206, 235), (0, self.screen_height - self.screen_height + 13),
-        #                 (self.screen_width, self.screen_height - self.screen_height + 13), 30)
         if self.colission_line:
             pygame.draw.line(self.canvas, (0,0,0), (0, self.colission_line[1]),
                              (self.screen_width, self.colission_line[1]), self.colission_line_thick)
@@ -178,7 +161,7 @@ class BallGameHardEnv(gym.Env):
 
 # Beispiel, um die Umgebung zu verwenden
 
-"""if __name__ == "__main__":
+if __name__ == "__main__":
     env = BallGameHardEnv(render_mode="human", obs_type="pixels")
     state = env.reset()
     done = False
@@ -203,4 +186,4 @@ class BallGameHardEnv(gym.Env):
         if done:
             env.reset()
 
-    env.close()"""
+    env.close()

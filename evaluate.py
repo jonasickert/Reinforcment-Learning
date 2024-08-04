@@ -59,7 +59,7 @@ def evaluate_agent(env_name, agent_type, num_episodes, log_wandb, path):
         episode_reward = 0
         steps = 0
         while not done:
-            if steps > 10000:
+            if steps > 1000:
                break
             steps += 1
             # Select an action randomly from class random_agent
@@ -114,7 +114,7 @@ def evaluate_trained_model(env_name, model_path, num_episodes=10):
         old_action = None
         steps = 0
         while not done:
-            if steps > 100:
+            if steps > 1000:
                 break
             steps += 1
             action = agent.select_action(state)  # Select action using the trained DQN agent

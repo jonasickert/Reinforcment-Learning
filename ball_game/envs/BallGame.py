@@ -117,7 +117,7 @@ class BallGameEnv(gym.Env):
 
 
 # Beispiel, um die Umgebung zu verwenden
-"""
+
 if __name__ == "__main__":
     env = BallGameEnv(render_mode="human", obs_type="pixels")
     state = env.reset()
@@ -136,11 +136,10 @@ if __name__ == "__main__":
             action = 1
 
         print(action)
-        state, reward, done, _ = env.step(action)
-        img_array = Image.fromarray(state)
-        img_array.show()
+        state, reward, done, _, ü = env.step(action)
+        """img_array = Image.fromarray(state)
+        img_array.show()"""
         if done:
             env.reset()
 
     env.close()
-    """

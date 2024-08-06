@@ -86,11 +86,12 @@ def evaluate_agent(env_name, agent_type, num_episodes, log_wandb, path):
         wandb.log({"average_reward": avg_reward})
         wandb.finish()
 
-    output_dir = "./evaluation_videos"
-    target_layers = agent.dqn.conv3
-    cam = GradCAM(model=agent.dqn, target_layers=[target_layers])
-    videos.create_video(env_name, agent, output_dir, cam, steps_done=avg_reward, num_episodes=1, render_mode='rgb_array',
-                 agent_type='dqn', log_wandb=False)
+    if agent_type == 'dqn':
+        output_dir = "./evaluation_videos"
+        target_layers = agent.dqn.conv3
+        cam = GradCAM(model=agent.dqn, target_layers=[target_layers])
+        videos.create_video(env_name, agent, output_dir, cam, steps_done=avg_reward, num_episodes=1, render_mode='rgb_array',
+                    agent_type='dqn', log_wandb=False)
 
 
 

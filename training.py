@@ -12,10 +12,10 @@ import wrapper
 from agent import DQNAgent #Maryem
 from evaluate import evaluate_trained_model, evaluate_agent #Maryem
 import Minesweeper
-#import ball_game_hard
-#import ball_game
-#import flappy_bird_gymnasium
-#import space_invaders
+import ball_game_hard
+import ball_game
+import flappy_bird_gymnasium
+import space_invaders
 from PIL import Image
 import gymnasium.wrappers.frame_stack as fs
 

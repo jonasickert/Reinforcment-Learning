@@ -24,9 +24,6 @@
 
 - Trained the model with Jonas for Cartpole but initially did not achieve a reward higher than 9.
   
-## Final Version of Training Script
-
-
 ## Additional Changes and Final Version of Training Script (for Cartpole)
 
 Since we didn't achieve higher reward than 9, I had to make some other changes to the training script:

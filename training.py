@@ -10,7 +10,7 @@ import torch.optim as optim
 import networks
 import wrapper
 from agent import DQNAgent #Maryem
-from evaluate import evaluate_trained_model #Maryem
+from evaluate import evaluate_trained_model, evaluate_agent #Maryem
 import Minesweeper
 import ball_game_hard
 import ball_game
@@ -24,6 +24,7 @@ import wandb
 import os
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
+import matplotlib.pyplot as plt
 
 
 
@@ -130,6 +131,7 @@ class Training:
         wandb.init(project="Minesweeper-pixel", entity="tudortmundg3-tu-dortmund", config=args)
         self.time_of_start = f"{self.render_mode}_{datetime.datetime.today().day}_{datetime.datetime.now().hour}{datetime.datetime.now().minute}"
 
+        self.rewards_per_step = []
 
 
     def set_weights(self):
@@ -195,6 +197,8 @@ class Training:
 
                 next_state, reward, done, _, _ = self.env.step(action)
                 total_reward += reward
+                
+                self.rewards_per_step.append(total_reward)
 
                 experience = [state, action, reward, next_state, done]
                 self.replay_memory.save_exp(experience)
@@ -242,6 +246,16 @@ class Training:
                 wandb.log({"mean_reward": mean_reward, "steps_done": self.steps_done})
                 self.log_evaluation(self.args.env, self.filename, self.steps_done)
                 next_evaluation += evaluation_interval
+                
+                #Hier an der Stelle zum Testen,ob es richtig loggt,
+                # verschwindet aber aus wandb nach ner zeit kA warum
+                # Nach dem testen hier entfernen und den anruf unten auskommentieren
+                self.plot_comparison()
+        
+        
+        #Sollte Hier Stehen, resultat gibt es aber erst am ENDE des trainings
+        #self.plot_comparison()
+        
 
         #print("Training completed.")
 
@@ -332,6 +346,33 @@ class Training:
         cam = GradCAM(model=self.t_network, target_layers=[target_layers])
         create_video(env_name, agent, output_dir, cam,  steps_done=steps_done, num_episodes=1, render_mode='rgb_array', agent_type='dqn', log_wandb=True)
         # output_dir, cam, ...
+    
+    def plot_comparison(self):
+        random_rewards = self.evaluate_random()
+        human_rewards = self.evaluate_human()
+        if random_rewards:
+            plt.axhline(y=np.mean(random_rewards), color='r', linestyle='--', label="Random Baseline")
+        if human_rewards:
+            plt.axhline(y=np.mean(human_rewards), color='g', linestyle='--', label="Human Baseline")
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.rewards_per_step, label="DQN Agent")
+        plt.axhline(y=np.mean(random_rewards), color='r', linestyle='--', label="Random Baseline")
+        plt.axhline(y=np.mean(human_rewards), color='g', linestyle='--', label="Human Baseline")
+        plt.xlabel("Environment Steps")
+        plt.ylabel("Sum of Rewards")
+        plt.legend()
+        plt.title("Comparison of DQN Agent with Random and Human Baselines")
+        plt.savefig("comparison_plot.png")
+        wandb.log({"comparison_plot": wandb.Image("comparison_plot.png")})
+    
+    def evaluate_random(self): # Added method to evaluate random baseline
+        total_rewards = evaluate_agent(self.args.env, "random", 10, False, None)
+        return total_rewards if total_rewards else [0]
+    
+    def evaluate_human(self): # Placeholder for human evaluation
+        # Implement this method based on how you collect human performance data
+        human_rewards = [50, 55, 60, 65, 70, 75, 80, 85, 90, 95]
+        return human_rewards if human_rewards else [0]
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a DQN agent.")

@@ -181,6 +181,9 @@ def create_side_by_side_frames(env_frames, cam_frames, action_values, cam, astat
 
 
         # Combine the environment frame and plot frame side-by-side
+        x, y, z = env_frame.shape 
+        if env_frame.shape != (84, 84, 3):
+            cam_image = cv2.resize(cam_image, (x,y))
         combined_frame = np.hstack((env_frame, plt_frame_resized, cam_image))
         # plt_frame_resized
         side_by_side_frames.append(combined_frame)

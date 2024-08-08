@@ -15,7 +15,7 @@
   - Changing the extraction from the mini-batches.
   - Saving the network and evaluating it.
   - Handling `None` values for `target_action_values` in the loss function, using appropriate data types for states and actions, and reshaping states to `(batch_size, input_dim)` to ensure compatibility with the network.
-  - 
+  
 ## Model Evaluation
 
 - The first version of the model evaluation in evaluation.py, including saving and loading networks in Agent.py. (see commits on July 18)
